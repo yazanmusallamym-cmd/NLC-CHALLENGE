@@ -1,6 +1,6 @@
 // Projector screen — sign in on host.html in the same browser first.
 import {
-  auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME,
+  auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME, checkAdmin,
   $, $$, esc, applyBranding, configBanner, qt, qOptions, watchLedger, adjustmentToast, renderBoard, TYPE_ICON
 } from "./common.js";
 
@@ -14,7 +14,7 @@ const stage = $("#sStage");
 $("#fsBtn").onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
 
 onAuthStateChanged(auth, async user => {
-  const ok = user && await get(ref(db, `admins/${user.uid}`)).then(s => s.val() === true).catch(() => false);
+  const ok = user && await checkAdmin(user.uid).catch(() => false);
   if (!ok) {
     stage.innerHTML = `<div class="s-center"><h1>📺 Projector screen</h1><p>Sign in on <a href="host.html">host.html</a> in this same browser, then come back to this tab.</p></div>`;
     return;

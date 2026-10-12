@@ -3,7 +3,7 @@ import {
   auth, db, ref, onValue, get, set, update, push, runTransaction, serverTimestamp, onDisconnect,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow,
   $, $$, esc, t, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
-  isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON
+  isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem
 } from "./common.js";
 
 let teamId = null, teams = {}, players = {}, pid = null, game = {}, live = null;
@@ -24,7 +24,7 @@ $("#loginForm").onsubmit = async e => {
   e.preventDefault();
   $("#loginErr").textContent = "";
   try { await signInWithEmailAndPassword(auth, $("#loginEmail").value.trim(), $("#loginPass").value); }
-  catch { $("#loginErr").textContent = t("wrong_login"); }
+  catch (err) { console.error(err); $("#loginErr").textContent = authProblem(err) || t("wrong_login"); }
 };
 const logout = async () => { if (teamId) localStorage.removeItem("tc_pid_" + teamId); await signOut(auth); location.reload(); };
 $("#logoutBtn2").onclick = logout;

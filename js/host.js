@@ -6,7 +6,7 @@ import {
 import {
   auth, db, ref, onValue, get, update, push, remove, set, serverTimestamp,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow, firebaseConfig,
-  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME
+  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin
 } from "./common.js";
 import { grade, pickPlayers } from "./grading.js";
 import { SAMPLE_QUESTIONS } from "./samples.js";
@@ -24,15 +24,22 @@ const COLORS = ["#ff5a5f", "#2ec4b6", "#ffbe0b", "#3a86ff", "#8338ec", "#fb5607"
 $("#hLoginForm").onsubmit = async e => {
   e.preventDefault(); $("#hLoginErr").textContent = "";
   try { await signInWithEmailAndPassword(auth, $("#hEmail").value.trim(), $("#hPass").value); }
-  catch { $("#hLoginErr").textContent = "Wrong email or password."; }
+  catch (err) {
+    console.error(err);
+    $("#hLoginErr").textContent = authProblem(err) ||
+      "Wrong email or password. Check this exact email is listed in Firebase → Authentication → Users (you can reset the password there).";
+  }
 };
 $("#hostLogout").onclick = () => signOut(auth).then(() => location.reload());
 
 onAuthStateChanged(auth, async user => {
   if (!user) return showPane("hLogin");
-  const isAdmin = await get(ref(db, `admins/${user.uid}`)).then(s => s.val() === true).catch(() => false);
+  let isAdmin = false;
+  try { isAdmin = await checkAdmin(user.uid); }
+  catch (e) { $("#hLoginErr").textContent = e.message; $("#hostLogout").classList.remove("hidden"); return showPane("hLogin"); }
   if (!isAdmin) {
-    $("#hLoginErr").innerHTML = `This account isn't a host yet. In Firebase → Realtime Database, add <code>admins/${esc(user.uid)}: true</code> (see README), then reload.`;
+    $("#hLoginErr").innerHTML = `Signed in ✓ — but this account isn't a host yet.<br>In Firebase → <b>Realtime Database → Data</b>, add <code>admins</code> → <code>${esc(user.uid)}</code> → <code>true</code>, then reload this page.<br><small>Your UID: <b>${esc(user.uid)}</b></small>`;
+    $("#hostLogout").classList.remove("hidden");
     return showPane("hLogin");
   }
   $("#tabs").classList.remove("hidden"); $("#hostLogout").classList.remove("hidden");

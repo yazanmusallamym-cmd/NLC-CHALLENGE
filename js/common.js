@@ -290,4 +290,31 @@ function countUp(el, a, b, ms = 1200) {
   requestAnimationFrame(step);
 }
 
+// Plain-language reason for a failed sign-in (null = ordinary wrong email/password).
+export function authProblem(err) {
+  const c = (err && err.code) || "";
+  if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) return null;
+  if (c.includes("operation-not-allowed")) return "Email/Password sign-in is turned off. Firebase → Authentication → Sign-in method → Email/Password → Enable.";
+  if (c.includes("unauthorized-domain")) return `This website isn't allowed yet. Firebase → Authentication → Settings → Authorized domains → add ${location.hostname}`;
+  if (c.includes("network-request-failed")) return "No connection to Firebase — check the internet and try again.";
+  if (c.includes("too-many-requests")) return "Too many attempts — wait a few minutes, or reset the password in Firebase → Authentication → Users.";
+  if (c.includes("api-key") || c.includes("invalid-api-key")) return "The Firebase settings in js/config.js are wrong (API key).";
+  if (c.includes("user-disabled")) return "This account is disabled in Firebase → Authentication → Users.";
+  return "Sign-in failed: " + (c || (err && err.message) || "unknown error");
+}
+
+// Is this user a host? Returns true/false, or throws a readable Error if the database can't be read.
+export async function checkAdmin(uid) {
+  let snap;
+  try { snap = await get(ref(db, `admins/${uid}`)); }
+  catch (e) {
+    const msg = String(e && (e.code || e.message) || e);
+    throw new Error(/permission/i.test(msg)
+      ? "The database refused access. Make sure you published database.rules.json in Realtime Database → Rules (not Firestore)."
+      : "Can't reach the database — check databaseURL in js/config.js. (" + msg + ")");
+  }
+  const v = snap.val();
+  return v === true || v === "true" || v === 1;
+}
+
 export const TYPE_ICON = { text: "✍️", number: "🎯", choice: "🔘", photo: "📸", task: "🏃", lineup: "🔢" };
