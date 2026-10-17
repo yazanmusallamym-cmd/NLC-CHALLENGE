@@ -74,15 +74,15 @@
         <button id="bBoard" class="btn huge board-toggle">🏆 Show scoreboard</button>
         <h3>Points &amp; deductions</h3>
         <label class="small">Reason
-          <input id="adjReason" list="reasonList" placeholder="e.g. Phones out during silence">
+          <input id="adjReason" list="reasonList" placeholder="e.g. Phones out · الجوالات برا">
           <datalist id="reasonList">
-            <option value="Talking during a silent challenge">
-            <option value="Same few people answering">
-            <option value="Late to the meeting point">
-            <option value="Unsportsmanlike behaviour">
-            <option value="Breaking the rules">
-            <option value="Great team spirit">
-            <option value="Creative answer bonus">
+            <option value="Talking during a silent challenge · الكلام خلال تحدي صامت">
+            <option value="Same few people answering · نفس الأشخاص بيجاوبوا دايماً">
+            <option value="Late to the meeting point · التأخر عن نقطة التجمع">
+            <option value="Unsportsmanlike behaviour · تصرف غير رياضي">
+            <option value="Breaking the rules · مخالفة القوانين">
+            <option value="Great team spirit · روح فريق رائعة">
+            <option value="Creative answer bonus · مكافأة جواب إبداعي">
           </datalist>
         </label>
         <div id="adjTeams"></div>
@@ -96,7 +96,8 @@
       <aside class="card">
         <div class="row-btns">
           <button id="qNew" class="btn">＋ New</button>
-          <button id="qSamples" class="btn ghost">Load samples</button>
+          <button id="qSamples" class="btn ghost">📦 Load camp pack (50)</button>
+          <button id="qDelAll" class="btn danger">🗑 Delete all</button>
         </div>
         <div id="qList" class="q-list"></div>
         <div class="row-btns">
@@ -112,7 +113,12 @@
           <label>Details (English)<textarea name="body_en" rows="2"></textarea></label>
           <label dir="rtl">التفاصيل (عربي)<textarea name="body_ar" rows="2"></textarea></label>
         </div>
-        <label>Image URL (optional)<input name="image" placeholder="https://… or assets/pic.jpg"></label>
+        <div class="img-field">
+          <label>Picture (optional) — e.g. your zoomed-in photo<input name="image" placeholder="Upload below, or paste a link"></label>
+          <div class="row-btns"><label class="btn">📷 Upload picture<input id="qImgFile" type="file" accept="image/*" hidden></label>
+          <button type="button" id="qImgClear" class="btn ghost">Remove</button></div>
+          <img id="qImgPrev" class="q-img-prev hidden" alt="">
+        </div>
 
         <fieldset>
           <legend>How do they answer?</legend>

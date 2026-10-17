@@ -261,7 +261,9 @@ button.chip { cursor: pointer; }
 .s-type { font-size: 3rem; }
 .s-qtitle { font-size: 3.2rem; font-weight: 800; line-height: 1.15; padding-inline-end: 220px; }
 .s-qtitle.small { font-size: 2.2rem; padding: 0; }
-.s-qtitle .ar, .s-qbody .ar { opacity: .85; }
+.s-qtitle .ar, .s-qbody .ar { opacity: .9; text-align: inherit; margin-top: 4px; }
+.s-qtitle .ar { font-size: .62em; font-weight: 700; }
+.s-qbody .ar { font-size: .82em; }
 .s-qbody { font-size: 1.8rem; margin-top: 10px; padding-inline-end: 220px; }
 .s-qimg { max-height: 36vh; border-radius: 18px; margin-top: 14px; }
 .s-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
@@ -316,3 +318,24 @@ button.chip { cursor: pointer; }
 .look-grid .look-prev { width: 100%; height: 110px; border-radius: 12px; object-fit: cover; background: #eee; border: 2px solid #eee; }
 .look-grid .look-prev.logo { object-fit: contain; background: #2b1d6b; }
 @media (max-width: 1100px) { .look-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Arabic line under English ---------- */
+.sub-ar { display: block; font-size: .78em; font-weight: 600; line-height: 1.35; opacity: .88;
+  text-align: inherit; margin-top: 2px; letter-spacing: 0; text-transform: none; }
+.btn:has(.sub-ar), .choice:has(.sub-ar) { flex-direction: column; gap: 0; line-height: 1.15; }
+.btn .sub-ar { font-size: .72em; opacity: .85; }
+.btn.huge .sub-ar { font-size: .6em; }
+.choice .sub-ar { font-size: .82em; opacity: .9; }
+label > span > .sub-ar { font-size: .85em; font-weight: 500; }
+.turn-banner .sub-ar, .q-title .sub-ar { font-size: .66em; }
+.tag .sub-ar, .timer .sub-ar { display: inline; margin-left: 6px; font-size: .85em; }
+.timer { text-align: end; }
+.board-title .sub-ar { font-size: .55em; }
+.bfeed-title .sub-ar { font-size: .85em; }
+.err .sub-ar { opacity: 1; }
+.row-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.row-h .count { background: #efecfb; border-radius: 99px; padding: 0 12px; font-size: 1rem; }
+.s-opt .sub-ar { font-size: .75em; }
+html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up under the English */
+.q-img-prev { max-height: 160px; max-width: 100%; border-radius: 12px; margin-top: 8px; display: block; }
+.img-field input[name=image] { font-size: .85rem; }

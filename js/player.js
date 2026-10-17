@@ -2,7 +2,7 @@
 import {
   auth, db, ref, onValue, get, set, update, push, runTransaction, serverTimestamp, onDisconnect,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow,
-  $, $$, esc, t, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
+  $, $$, esc, t, b, tp, pair, textPair, qb, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
   isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem
 } from "./common.js";
 
@@ -24,7 +24,7 @@ $("#loginForm").onsubmit = async e => {
   e.preventDefault();
   $("#loginErr").textContent = "";
   try { await signInWithEmailAndPassword(auth, $("#loginEmail").value.trim(), $("#loginPass").value); }
-  catch (err) { console.error(err); $("#loginErr").textContent = authProblem(err) || t("wrong_login"); }
+  catch (err) { console.error(err); { const pr = authProblem(err); $("#loginErr").innerHTML = pr ? esc(pr) : b("wrong_login"); } }
 };
 const logout = async () => { if (teamId) localStorage.removeItem("tc_pid_" + teamId); await signOut(auth); location.reload(); };
 $("#logoutBtn2").onclick = logout;
@@ -34,7 +34,7 @@ onAuthStateChanged(auth, async user => {
   if (!user) { show("vLogin"); return; }
   const s = await get(ref(db, `teamByUid/${user.uid}`)).catch(() => null);
   teamId = s && s.val();
-  if (!teamId) { show("vLogin"); $("#loginErr").textContent = t("not_team"); await signOut(auth); return; }
+  if (!teamId) { show("vLogin"); $("#loginErr").innerHTML = b("not_team"); await signOut(auth); return; }
   pid = localStorage.getItem("tc_pid_" + teamId);
 
   unsubs.push(onValue(ref(db, "teams"), s => { teams = s.val() || {}; renderTeamChip(); render(); }));
@@ -63,7 +63,7 @@ function renderTeamChip() {
 $("#nameForm").onsubmit = async e => {
   e.preventDefault();
   const f = $("#firstName").value, l = $("#lastName").value;
-  if (!isRealName(f, l)) { $("#nameErr").textContent = t("name_invalid"); return; }
+  if (!isRealName(f, l)) { $("#nameErr").innerHTML = b("name_invalid"); return; }
   const name = `${titleCase(f)} ${titleCase(l)}`;
   $("#nameErr").textContent = "";
   try {
@@ -74,12 +74,12 @@ $("#nameForm").onsubmit = async e => {
     pid = r.key;
     localStorage.setItem("tc_pid_" + teamId, pid);
     enterGame();
-  } catch (err) { console.error(err); $("#nameErr").textContent = t("failed"); }
+  } catch (err) { console.error(err); $("#nameErr").innerHTML = b("failed"); }
 };
 
 function renderReclaim() {
   const list = Object.entries(players).sort((a, b) => a[1].number - b[1].number);
-  $("#reclaim").innerHTML = list.length ? `<p class="muted">${t("already_joined")}</p>
+  $("#reclaim").innerHTML = list.length ? `<p class="muted">${b("already_joined")}</p>
     <div class="chips">${list.map(([id, p]) => `<button class="chip" data-pid="${id}">#${p.number} ${esc(p.name)}</button>`).join("")}</div>` : "";
   $$("#reclaim [data-pid]").forEach(b => b.onclick = () => {
     pid = b.dataset.pid; localStorage.setItem("tc_pid_" + teamId, pid); enterGame();
@@ -132,7 +132,7 @@ const canAnswer = () => game.phase === "open" && timeLeft() > 0 && isAssigned() 
 function render() {
   if (!pid || !me() || $("#vMain").classList.contains("hidden")) return;
   const m = me();
-  $("#meBar").innerHTML = `${t("you_are")} <b>#${m.number}</b> · ${esc(m.name)}`;
+  $("#meBar").innerHTML = `<b>#${m.number}</b> · ${esc(m.name)}`;
 
   const phase = game.phase || "lobby";
   const inQ = phase !== "lobby" && live && live.qid === game.qid;
@@ -154,8 +154,8 @@ function render() {
 
 function lobbyHTML() {
   const list = Object.values(players).sort((a, b) => a.number - b.number);
-  return `<div class="card center pulse-card"><div class="big-emoji">⏳</div><h2>${t("waiting")}</h2></div>
-    <div class="card"><h3>${t("teammates")} (${list.length})</h3>
+  return `<div class="card center pulse-card"><div class="big-emoji">⏳</div><h2>${b("waiting")}</h2></div>
+    <div class="card"><h3 class="row-h"><span>${b("teammates")}</span><span class="count">${list.length}</span></h3>
     <div class="chips">${list.map(p => `<span class="chip ${p.online ? "" : "offline"}">#${p.number} ${esc(p.name)}</span>`).join("")}</div></div>`;
 }
 
@@ -168,74 +168,75 @@ function dutyNames() {
 function questionHTML(phase, sub) {
   const q = live;
   const head = `<div class="q-card card">
-    <div class="q-meta"><span class="q-type">${TYPE_ICON[q.type] || "❓"}</span>${q.practice ? `<span class="tag">${t("practice")}</span>` : ""}
+    <div class="q-meta"><span class="q-type">${TYPE_ICON[q.type] || "❓"}</span>${q.practice ? `<span class="tag">${b("practice")}</span>` : ""}
       <div class="timer" id="timer"></div></div>
-    <h2 class="q-title">${esc(qt(q, "title"))}</h2>
-    ${qt(q, "body") ? `<p class="q-body">${esc(qt(q, "body")).replace(/\n/g, "<br>")}</p>` : ""}
+    <h2 class="q-title">${qb(q, "title")}</h2>
+    ${qt(q, "body") ? `<p class="q-body">${qb(q, "body")}</p>` : ""}
     ${q.image ? `<img class="q-img" src="${esc(q.image)}" alt="">` : ""}
     <div class="timebar"><div id="timebarFill"></div></div>
   </div>`;
 
   if (!isAssigned()) {
-    return head + `<div class="card bench"><div class="big-emoji">🪑</div><h3>${t("bench_title")}</h3>
-      <p>${t("bench_body", { names: `<b>${dutyNames() || "…"}</b>` })}</p>${teamStatusHTML()}</div>`;
+    return head + `<div class="card bench"><div class="big-emoji">🪑</div><h3>${b("bench_title")}</h3>
+      <p>${b("bench_body", { names: `<b>${dutyNames() || "…"}</b>` })}</p>${teamStatusHTML()}</div>`;
   }
-  const intro = q.inputMode === "each" ? `<div class="turn-banner everyone">${t("everyone_turn")}</div>`
-    : `<div class="turn-banner">${t("your_turn")}</div>`;
-  if (phase === "show") return head + intro + `<div class="card center"><h3>${t("get_ready")}</h3></div>`;
+  const intro = q.inputMode === "each" ? `<div class="turn-banner everyone">${b("everyone_turn")}</div>`
+    : `<div class="turn-banner">${b("your_turn")}</div>`;
+  if (phase === "show") return head + intro + `<div class="card center"><h3>${b("get_ready")}</h3></div>`;
   if (sub) {
-    const by = q.inputMode === "team" && sub.playerId !== pid ? t("submitted_by", { name: esc(sub.name) }) : "";
-    const txt = q.type === "task" || q.type === "lineup" ? t("done_sent") : t("submitted");
+    const by = q.inputMode === "team" && sub.playerId !== pid ? b("submitted_by", { name: esc(sub.name) }) : "";
+    const txt = q.type === "task" || q.type === "lineup" ? b("done_sent") : b("submitted");
     return head + `<div class="card center done-card"><div class="big-emoji">✅</div><h3>${txt}</h3>
-      ${by ? `<p>${by}</p>` : ""}${sub.value && q.type !== "photo" && q.type !== "task" && q.type !== "lineup" ? `<p class="answer-echo">${esc(answerLabel(sub.value))}</p>` : ""}
+      ${by ? `<p>${by}</p>` : ""}${sub.value && q.type !== "photo" && q.type !== "task" && q.type !== "lineup" ? `<p class="answer-echo">${answerLabel(sub.value)}</p>` : ""}
       ${teamStatusHTML()}</div>` + (q.type === "lineup" && secret != null ? secretHTML() : "");
   }
   return head + intro + `<div class="card answer-card" id="answerCard">${inputHTML(q)}<p class="err" id="ansErr"></p></div>` + teamStatusHTML(true);
 }
 
 function answerLabel(v) {
-  if (live.type === "choice") return qOptions(live)[Number(v)] ?? v;
-  return v;
+  if (live.type === "choice") { const i = Number(v); return textPair(qOptions(live, "en")[i] ?? v, qOptions(live, "ar")[i]); }
+  return esc(v);
 }
 
 function teamStatusHTML(asCard) {
   if (!live || live.inputMode !== "each") return "";
   const dutyIds = assign._all ? Object.keys(players) : Object.keys(assign).filter(k => k !== "_all");
   const n = dutyIds.filter(id => subs[id]).length;
-  const html = `<p class="squad" id="squad">${t("squad_progress", { n, m: dutyIds.length })}</p>`;
+  const html = `<p class="squad" id="squad">${b("squad_progress", { n, m: dutyIds.length })}</p>`;
   return asCard ? `<div class="card">${html}</div>` : html;
 }
 
 function secretHTML() {
-  return `<div class="card center secret"><p>${t("secret_number")}</p><div class="secret-num">${esc(secret)}</div><p class="muted">${t("lineup_hint")}</p></div>`;
+  return `<div class="card center secret"><p>${b("secret_number")}</p><div class="secret-num">${esc(secret)}</div><p class="muted">${b("lineup_hint")}</p></div>`;
 }
 
 function inputHTML(q) {
   switch (q.type) {
     case "text":
-      return `<input id="ansText" class="ans-input" placeholder="${t("type_answer")}" autocomplete="off" maxlength="200">
-        <button class="btn big" id="ansSend">${t("submit")}</button>`;
+      return `<input id="ansText" class="ans-input" placeholder="${tp("type_answer")}" autocomplete="off" maxlength="200">
+        <button class="btn big" id="ansSend">${b("submit")}</button>`;
     case "number":
-      return `<input id="ansText" class="ans-input" type="number" inputmode="decimal" step="any" placeholder="${t("number_answer")}">
-        <button class="btn big" id="ansSend">${t("submit")}</button>`;
+      return `<input id="ansText" class="ans-input" type="number" inputmode="decimal" step="any" placeholder="${tp("number_answer")}">
+        <button class="btn big" id="ansSend">${b("submit")}</button>`;
     case "choice":
-      return `<div class="choices">${qOptions(q).map((o, i) =>
-        `<button class="choice c${i % 6}" data-i="${i}">${esc(o)}</button>`).join("")}</div>
-        <button class="btn big hidden" id="ansSend">${t("submit")}</button>`;
+      const arOpts = qOptions(q, "ar");
+      return `<div class="choices">${qOptions(q, "en").map((o, i) =>
+        `<button class="choice c${i % 6}" data-i="${i}">${textPair(o, arOpts[i])}</button>`).join("")}</div>
+        <button class="btn big hidden" id="ansSend">${b("submit")}</button>`;
     case "photo":
       return photoHTML();
     case "task":
-      return (q.requirePhoto ? photoHTML(t("were_done")) : `<button class="btn huge" id="ansDone">${t("were_done")}</button>`);
+      return (q.requirePhoto ? photoHTML(b("were_done")) : `<button class="btn huge" id="ansDone">${b("were_done")}</button>`);
     case "lineup":
-      return (secret != null ? `<div class="secret-num">${esc(secret)}</div><p class="muted">${t("lineup_hint")}</p>` : "")
-        + `<button class="btn huge" id="ansDone">${t("were_done")}</button>`;
+      return (secret != null ? `<div class="secret-num">${esc(secret)}</div><p class="muted">${b("lineup_hint")}</p>` : "")
+        + `<button class="btn huge" id="ansDone">${b("were_done")}</button>`;
   }
   return "";
 }
 function photoHTML(label) {
-  return `<label class="btn big ghost file-btn">${t("take_photo")}<input id="ansFile" type="file" accept="image/*" hidden></label>
-    <img id="ansPreview" class="preview hidden" alt="${t("photo_preview")}">
-    <button class="btn big hidden" id="ansSend">${label || t("send_photo")}</button>`;
+  return `<label class="btn big ghost file-btn">${b("take_photo")}<input id="ansFile" type="file" accept="image/*" hidden></label>
+    <img id="ansPreview" class="preview hidden" alt="${tp("photo_preview")}">
+    <button class="btn big hidden" id="ansSend">${label || b("send_photo")}</button>`;
 }
 
 function wireInputs() {
@@ -248,25 +249,25 @@ function wireInputs() {
     $$(".choice").forEach(x => x.classList.remove("sel"));
     b.classList.add("sel"); selectedChoice = b.dataset.i; send.classList.remove("hidden");
   });
-  if (live.type === "choice") send.onclick = () => { if (selectedChoice != null) submit(selectedChoice); };
+  if (send && live.type === "choice") send.onclick = () => { if (selectedChoice != null) submit(selectedChoice); };
   if (file) file.onchange = async () => {
     const f = file.files[0]; if (!f) return;
     try {
       pendingImage = await compressImage(f);
       $("#ansPreview").src = pendingImage; $("#ansPreview").classList.remove("hidden");
       send.classList.remove("hidden");
-    } catch { $("#ansErr").textContent = t("failed"); }
+    } catch { $("#ansErr").innerHTML = b("failed"); }
   };
-  if (file) send.onclick = () => { if (pendingImage) submit(live.type === "task" ? "done" : "photo", pendingImage); };
+  if (file && send) send.onclick = () => { if (pendingImage) submit(live.type === "task" ? "done" : "photo", pendingImage); };
   if (done) done.onclick = () => submit("done");
 }
 
 async function submit(value, image) {
-  if (!canAnswer()) { $("#ansErr") && ($("#ansErr").textContent = t("too_late")); return; }
+  if (!canAnswer()) { $("#ansErr") && ($("#ansErr").innerHTML = b("too_late")); return; }
   const sid = live.inputMode === "team" ? "team" : pid;
   const card = $("#answerCard");
   card && card.classList.add("sending");
-  if (image) $("#ansErr").textContent = t("uploading");
+  if (image) $("#ansErr").innerHTML = b("uploading");
   const upd = {};
   upd[`submissions/${game.qid}/${teamId}/${sid}`] = {
     playerId: pid, name: me().name, number: me().number, value: String(value), time: serverTimestamp(), hasImage: !!image
@@ -276,18 +277,18 @@ async function submit(value, image) {
   catch (e) {
     console.error(e);
     card && card.classList.remove("sending");
-    $("#ansErr") && ($("#ansErr").textContent = mySub() ? t("submitted") : (timeLeft() <= 0 ? t("too_late") : t("failed")));
+    $("#ansErr") && ($("#ansErr").innerHTML = mySub() ? b("submitted") : (timeLeft() <= 0 ? b("too_late") : b("failed")));
   }
 }
 
 function tick() {
   const el = $("#timer"), fill = $("#timebarFill");
   if (!el || !live) return;
-  if (game.phase === "locked") { el.textContent = t("times_up"); el.classList.add("over"); if (fill) fill.style.width = "0%"; disableInputs(); return; }
+  if (game.phase === "locked") { el.innerHTML = b("times_up"); el.classList.add("over"); if (fill) fill.style.width = "0%"; disableInputs(); return; }
   if (!game.endsAt || game.phase !== "open") { el.textContent = game.phase === "show" ? "" : "∞"; if (fill) fill.style.width = game.phase === "open" ? "100%" : "0%"; return; }
   const left = timeLeft();
   const total = (live.timeLimit || 1) * 1000;
-  el.textContent = left > 0 ? Math.ceil(left / 1000) + "s" : t("times_up");
+  if (left > 0) el.textContent = Math.ceil(left / 1000) + "s"; else if (!el.classList.contains("over")) el.innerHTML = b("times_up");
   el.classList.toggle("over", left <= 0);
   el.classList.toggle("hurry", left > 0 && left < 5000);
   if (fill) fill.style.width = Math.max(0, Math.min(100, (left / total) * 100)) + "%";
@@ -295,7 +296,7 @@ function tick() {
   const sq = $("#squad");
   if (sq && live.inputMode === "each") {
     const dutyIds = assign._all ? Object.keys(players) : Object.keys(assign).filter(k => k !== "_all");
-    sq.textContent = t("squad_progress", { n: dutyIds.filter(id => subs[id]).length, m: dutyIds.length });
+    sq.innerHTML = b("squad_progress", { n: dutyIds.filter(id => subs[id]).length, m: dutyIds.length });
   }
 }
 function disableInputs() { $$("#answerCard button, #answerCard input").forEach(b => b.disabled = true); }
@@ -303,12 +304,24 @@ function disableInputs() { $$("#answerCard button, #answerCard input").forEach(b
 function revealHTML() {
   const r = game.reveal || {};
   const res = (r.results || {})[teamId];
-  const ans = lang() === "ar" ? (r.answer_ar || r.answer_en) : (r.answer_en || r.answer_ar);
+  const ans = textPair(r.answer_en, r.answer_ar);
   return `<div class="card center reveal-card">
-    <h3>${esc(qt(live, "title"))}</h3>
-    ${ans ? `<p class="muted">${t("answer_was")}</p><div class="reveal-answer">${esc(ans)}</div>` : ""}
-    ${live.practice ? `<p class="tag">${t("practice")}</p>` : res ? `<p class="muted">${t("your_team_got")}</p>
-      <div class="reveal-points ${res.points < 0 ? "neg" : ""}">${res.points > 0 ? "+" : ""}${res.points} ${t("points")}</div>
-      ${res.summary ? `<p class="muted">${esc(res.summary)}</p>` : ""}` : ""}
+    <h3>${qb(live, "title")}</h3>
+    ${ans ? `<p class="muted">${b("answer_was")}</p><div class="reveal-answer">${ans}</div>` : ""}
+    ${live.practice ? `<p class="tag">${b("practice")}</p>` : res ? `<p class="muted">${b("your_team_got")}</p>
+      <div class="reveal-points ${res.points < 0 ? "neg" : ""}">${res.points > 0 ? "+" : ""}${res.points} ${pair(t("points"), "")}</div>
+      ${res.summary ? `<p class="muted">${textPair(res.summary, summaryAr(res.summary))}</p>` : ""}` : ""}
   </div>`;
+}
+
+// Arabic line for the auto-generated result summary ("✓ canberra · 1st · 4.2s")
+function summaryAr(s) {
+  return String(s)
+    .replace(/no answer/g, "بدون جواب")
+    .replace(/(\d+)\/(\d+) answered/g, "جاوب $1 من $2")
+    .replace(/(\d+) correct/g, "$1 صح")
+    .replace(/−(\d+) wrong/g, "−$1 غلط")
+    .replace(/off by ([\d.]+)/g, "الفرق $1")
+    .replace(/\b(\d+)(st|nd|rd|th)\b/g, "المركز $1")
+    .replace(/(\d+(?:\.\d+)?)s\b/g, "$1 ث");
 }

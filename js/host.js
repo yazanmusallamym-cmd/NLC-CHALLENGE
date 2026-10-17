@@ -281,7 +281,7 @@ async function applyPoints() {
   if (!q) return;
   const values = finalValues(), upd = {};
   for (const [id, e] of Object.entries(ledger)) if (e.kind === "round" && e.qid === qid) upd[`ledger/${id}`] = null;
-  const reason = `Q${qIndex(qid)}: ${q.title_en || q.title_ar || ""}`;
+  const reason = `Q${qIndex(qid)}: ${[q.title_en, q.title_ar].filter(Boolean).join(" · ")}`;
   for (const [tid, v] of Object.entries(values)) {
     if (!v || q.practice) continue;
     upd[`ledger/${push(ref(db, "ledger")).key}`] = { teamId: tid, delta: v, reason, qid, kind: "round", time: serverTimestamp() };
@@ -363,6 +363,7 @@ function qToForm(q) {
 function syncFormExtras() {
   const type = form.elements.type.value, target = form.elements.target.value;
   $$(".type-extra", form).forEach(el => el.classList.toggle("hidden", !el.dataset.for.split(" ").includes(type)));
+  showImgPrev();
   $$(".target-extra", form).forEach(el => el.classList.toggle("hidden", el.dataset.for !== target));
   const hints = {
     speed: "Teams with a correct answer are ranked by speed: 1st gets the first number, 2nd the second… In “every player” mode the team's time is when its LAST player answers, and points scale with how many got it right.",
@@ -374,6 +375,19 @@ function syncFormExtras() {
   $("#scoreHint").textContent = hints[form.elements.scoring.value] || "";
 }
 form.addEventListener("change", syncFormExtras);
+function showImgPrev() {
+  const v = form.elements.image.value.trim();
+  $("#qImgPrev").classList.toggle("hidden", !v);
+  if (v) $("#qImgPrev").src = v;
+}
+form.elements.image.addEventListener("input", showImgPrev);
+$("#qImgFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { form.elements.image.value = await compressImage(f, 1000, 0.75); showImgPrev(); $("#qMsg").textContent = "Picture added — press Save."; }
+  catch { $("#qMsg").textContent = "Couldn't read that picture."; }
+  e.target.value = "";
+};
+$("#qImgClear").onclick = () => { form.elements.image.value = ""; showImgPrev(); };
 
 function renderQList() {
   $("#qList").innerHTML = sortedQ().map(([id, q], i) => `<button class="run-item ${id === editQid ? "sel" : ""}" data-id="${id}">
@@ -420,11 +434,21 @@ $("#qDel").onclick = async () => {
   await remove(ref(db, `questions/${editQid}`)); editQ(null);
 };
 $("#qSamples").onclick = async () => {
+  const has = Object.keys(questions).length;
+  if (has && !confirm(`Add the ${SAMPLE_QUESTIONS.length} camp questions after your ${has} existing ones?\n(To start clean, press “Delete all” first.)`)) return;
   let order = Math.max(0, ...Object.values(questions).map(x => x.order || 0));
   const upd = {};
   for (const q of SAMPLE_QUESTIONS) upd[`questions/${push(ref(db, "questions")).key}`] = { ...q, order: ++order };
   await update(ref(db), upd);
-  toast(`Added ${SAMPLE_QUESTIONS.length} sample questions`, "good");
+  toast(`Added ${SAMPLE_QUESTIONS.length} questions`, "good");
+};
+$("#qDelAll").onclick = async () => {
+  const n = Object.keys(questions).length;
+  if (!n || !confirm(`Delete ALL ${n} questions? This can't be undone (use ⬇ Export first if you want a backup).`)) return;
+  if (game.phase && game.phase !== "lobby") await update(ref(db, "game"), { phase: "lobby", gallery: false, spotlight: null });
+  await update(ref(db), { questions: null, applied: null });
+  editQ(null); selQid = null; renderPreview();
+  toast(`Deleted ${n} questions`, "good");
 };
 $("#qExport").onclick = () => {
   const data = sortedQ().map(([, q]) => q);

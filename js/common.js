@@ -11,7 +11,9 @@ import {
 import { firebaseConfig, GAME } from "./config.js";
 
 export const configured = !String(firebaseConfig.apiKey).startsWith("PASTE");
-export const app = initializeApp(firebaseConfig);
+// Players get their own sign-in slot, so a team login and the host login can live in the same browser.
+const IS_PLAYER = !/(host|screen)\.html$/i.test(location.pathname);
+export const app = IS_PLAYER ? initializeApp(firebaseConfig, "player") : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
@@ -45,7 +47,7 @@ export function applyBranding() {
   const setBg = url => document.body.style.setProperty("--bg-image", url ? `url("${url}")` : "none");
   const fileBg = () => { const img = new Image(); img.onload = () => !brandSettings.background && setBg(GAME.background); img.src = GAME.background; };
   setLogo(GAME.logo); fileBg();
-  $$("[data-title]").forEach(el => el.textContent = lang() === "ar" ? GAME.titleAr : GAME.title);
+  setTitles();
   // Look & feel chosen in the host panel overrides the files, live for everyone.
   if (!configured) return;
   onValue(ref(db, "settings"), snap => {
@@ -107,17 +109,44 @@ const T = {
 };
 export const lang = () => localStorage.getItem("tc_lang") || "en";
 export function setLang(l) { localStorage.setItem("tc_lang", l); applyLang(); }
-export function t(key, vars = {}) {
-  let s = (T[lang()] && T[lang()][key]) || T.en[key] || key;
+export function tl(l, key, vars = {}) {
+  let s = (T[l] && T[l][key]) || T.en[key] || key;
   for (const k in vars) s = s.replace(`{${k}}`, vars[k]);
   return s;
+}
+export const t = (key, vars) => tl(lang(), key, vars);
+
+// ---- Bilingual: English with a smaller Arabic line underneath (the default).
+// The ع button switches a phone to Arabic only.
+export const bilingual = () => lang() !== "ar";
+const AR = html => `<span class="sub-ar" dir="rtl" lang="ar">${html}</span>`;
+// Two already-safe HTML strings → "English + Arabic under it"
+export function pair(enHtml, arHtml) {
+  if (!bilingual()) return arHtml || enHtml || "";
+  if (!enHtml || !arHtml || enHtml === arHtml) return enHtml || arHtml || "";
+  return `${enHtml}${AR(arHtml)}`;
+}
+// Interface text by key (HTML)
+export const b = (key, vars = {}) => pair(tl("en", key, vars), tl("ar", key, vars));
+// Interface text for places that can't hold two lines (placeholders)
+export const tp = (key, vars = {}) => bilingual() ? `${tl("en", key, vars)} / ${tl("ar", key, vars)}` : tl("ar", key, vars);
+// Plain text pair (escaped) — for question fields, options, answers
+const nl = s => esc(s).replace(/\n/g, "<br>");
+export const textPair = (en, ar) => pair(en ? nl(en) : "", ar ? nl(ar) : "");
+export const qb = (obj, field) => obj ? textPair(obj[`${field}_en`], obj[`${field}_ar`]) : "";
+
+function setTitles() {
+  $$("[data-title]").forEach(el => {
+    if (document.body.classList.contains("phone")) el.innerHTML = textPair(GAME.title, GAME.titleAr);
+    else el.textContent = lang() === "ar" ? GAME.titleAr : GAME.title;
+  });
 }
 export function applyLang() {
   document.documentElement.lang = lang();
   document.documentElement.dir = lang() === "ar" ? "rtl" : "ltr";
-  $$("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
-  $$("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
-  $$("[data-title]").forEach(el => el.textContent = lang() === "ar" ? GAME.titleAr : GAME.title);
+  $$("[data-i18n]").forEach(el => el.innerHTML = b(el.dataset.i18n));
+  $$("[data-i18n-ph]").forEach(el => el.placeholder = tp(el.dataset.i18nPh));
+  setTitles();
 }
 // Pick the right language field of a question, falling back to the other one.
 export function qt(obj, field, l = lang()) {
@@ -244,7 +273,7 @@ export function renderBoard(el, { teams, ledger, since = 0, from = null, highlig
           <div class="bscore"><span class="num">${start[id]}</span><span class="bdelta"></span></div>
         </div>`).join("")}
     </div>
-    ${feed.length ? `<div class="bfeed"><div class="bfeed-title">${t("recent")}</div>${feed.map(e => `
+    ${feed.length ? `<div class="bfeed"><div class="bfeed-title">${b("recent")}</div>${feed.map(e => `
       <div class="bfeed-row ${e.delta < 0 ? "neg" : "pos"}"><span class="dot" style="background:${esc(teams[e.teamId].color)}"></span>
       <b>${esc(teams[e.teamId].name)}</b> <span class="d">${e.delta > 0 ? "+" : ""}${e.delta}</span> <span class="r">${esc(e.reason || "")}</span></div>`).join("")}</div>` : ""}`;
 

@@ -108,7 +108,7 @@ function questionHTML() {
   const q = live;
   const opts = q.type === "choice" ? qOptions(q, "en").map((o, i) => {
     const ar = qOptions(q, "ar")[i];
-    return `<div class="s-opt c${i % 6}">${esc(o)}${ar && ar !== o ? `<span dir="rtl"> · ${esc(ar)}</span>` : ""}</div>`;
+    return `<div class="s-opt c${i % 6}">${esc(o)}${ar && ar !== o ? `<span class="sub-ar" dir="rtl" lang="ar">${esc(ar)}</span>` : ""}</div>`;
   }).join("") : "";
   return `<div class="s-question">
     <div class="s-qhead">
