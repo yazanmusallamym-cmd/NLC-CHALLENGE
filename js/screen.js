@@ -80,14 +80,15 @@ function playerUrl() {
   return location.href.replace(/screen\.html.*$/, "");
 }
 function lobbyHTML() {
+  // Left two-thirds: teams (under the logo). Right third: QR at the top, then title + how to join.
   return `<div class="lobby">
-    <div class="lobby-left">
+    <div class="lobby-teams" id="lobbyTeams"></div>
+    <div class="lobby-side">
+      <div class="qr-box"><div id="qr"></div><div class="qr-url">${esc(playerUrl().replace(/^https?:\/\//, ""))}</div></div>
       <h1 class="s-title" data-title>${esc(GAME.title)}</h1>
       <div class="s-sub" dir="rtl">${esc(GAME.titleAr)}</div>
-      <div class="qr-box"><div id="qr"></div><div class="qr-url">${esc(playerUrl().replace(/^https?:\/\//, ""))}</div></div>
       <p class="s-hint">Scan · sign in with your team login · type your REAL name<br><span dir="rtl">امسح · ادخل بحساب فريقك · اكتب اسمك الحقيقي</span></p>
     </div>
-    <div class="lobby-teams" id="lobbyTeams"></div>
   </div>`;
 }
 function drawQR() {
