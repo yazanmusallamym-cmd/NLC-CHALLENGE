@@ -212,7 +212,7 @@ button.chip { cursor: pointer; }
 .adj-btns .neg { background: #ffe0e5; color: var(--bad); } .adj-btns .pos { background: #d8f8ec; color: #059669; }
 .adj-btns input { width: 64px; margin: 0; padding: 4px 6px; font-size: .9rem; }
 .adj-btns .go { background: var(--ink); color: #fff; }
-.q-grid { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
+.q-grid { display: grid; grid-template-columns: 380px 1fr; gap: 14px; align-items: start; }
 .q-form fieldset { border: 2px solid #eeeaf9; border-radius: 14px; margin: 12px 0; padding: 4px 14px 10px; }
 .q-form legend { font-weight: 800; padding: 0 6px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
@@ -340,3 +340,17 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .q-img-prev { max-height: 160px; max-width: 100%; border-radius: 12px; margin-top: 8px; display: block; }
 .img-field input[name=image] { font-size: .85rem; }
 .lobby-side .s-title { margin-top: 18px; font-size: 3rem; }
+.q-row { display: grid; grid-template-columns: 18px 34px 1fr auto; align-items: center; gap: 6px; background: #f5f3fd;
+  border: 2px solid transparent; border-radius: 12px; padding: 6px 8px; cursor: pointer; font-weight: 600; font-size: .95rem; position: relative; }
+.q-row.sel { border-color: var(--brand); background: #fff8e1; }
+.q-row.dragging { opacity: .4; }
+.q-row.drop-above { box-shadow: 0 -4px 0 var(--hot); }
+.q-row.drop-below { box-shadow: 0 4px 0 var(--hot); }
+.q-grip { cursor: grab; color: var(--muted); font-size: 1.1rem; user-select: none; }
+.q-pos { border: 0; background: #e6e2f7; border-radius: 8px; font: 800 .85rem var(--font); color: var(--ink); padding: 3px 0; cursor: pointer; }
+.q-pos:hover { background: var(--brand); }
+.q-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+.q-arrows { display: flex; gap: 2px; }
+.q-arrows button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: .8rem; padding: 4px 5px; border-radius: 6px; }
+.q-arrows button:hover:not(:disabled) { background: #e6e2f7; color: var(--ink); }
+.q-arrows button:disabled { opacity: .25; cursor: default; }

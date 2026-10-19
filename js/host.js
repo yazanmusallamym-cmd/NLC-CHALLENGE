@@ -86,7 +86,7 @@ function onGame() {
   renderRunList(); updateControls();
 }
 
-const sortedQ = () => Object.entries(questions).sort((a, b) => (a[1].order || 0) - (b[1].order || 0));
+const sortedQ = () => Object.entries(questions).sort((a, b) => (a[1].order || 0) - (b[1].order || 0) || (a[0] < b[0] ? -1 : 1));
 const qIndex = qid => sortedQ().findIndex(([id]) => id === qid) + 1;
 const teamIds = () => Object.keys(teams).sort((a, b) => (teams[a].name || "").localeCompare(teams[b].name || ""));
 
@@ -390,9 +390,62 @@ $("#qImgFile").onchange = async e => {
 $("#qImgClear").onclick = () => { form.elements.image.value = ""; showImgPrev(); };
 
 function renderQList() {
-  $("#qList").innerHTML = sortedQ().map(([id, q], i) => `<button class="run-item ${id === editQid ? "sel" : ""}" data-id="${id}">
-    <span class="ri-n">${i + 1}</span><span class="ri-t">${TYPE_ICON[q.type] || ""} ${esc(q.title_en || q.title_ar || "Untitled")}</span></button>`).join("");
-  $$("#qList .run-item").forEach(b => b.onclick = () => editQ(b.dataset.id));
+  const list = sortedQ();
+  $("#qList").innerHTML = list.map(([id, q], i) => `
+    <div class="q-row ${id === editQid ? "sel" : ""}" draggable="true" data-id="${id}">
+      <span class="q-grip" title="Drag to move">⠿</span>
+      <button type="button" class="q-pos" data-pos="${id}" title="Click to move to a position">${i + 1}</button>
+      <span class="q-name">${TYPE_ICON[q.type] || ""} ${esc(q.title_en || q.title_ar || "Untitled")}</span>
+      <span class="q-arrows">
+        <button type="button" data-mv="-1" data-id="${id}" title="Move up" ${i === 0 ? "disabled" : ""}>▲</button>
+        <button type="button" data-mv="1" data-id="${id}" title="Move down" ${i === list.length - 1 ? "disabled" : ""}>▼</button>
+      </span>
+    </div>`).join("") || `<p class="muted">No questions yet.</p>`;
+
+  $$("#qList .q-row").forEach(row => {
+    row.onclick = e => { if (!e.target.closest("button")) editQ(row.dataset.id); };
+    row.ondragstart = e => { dragId = row.dataset.id; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); };
+    row.ondragend = () => { dragId = null; $$("#qList .q-row").forEach(r => r.classList.remove("dragging", "drop-above", "drop-below")); };
+    row.ondragover = e => {
+      if (!dragId || dragId === row.dataset.id) return;
+      e.preventDefault();
+      const below = e.offsetY > row.offsetHeight / 2;
+      $$("#qList .q-row").forEach(r => r.classList.remove("drop-above", "drop-below"));
+      row.classList.add(below ? "drop-below" : "drop-above");
+    };
+    row.ondrop = e => {
+      e.preventDefault();
+      if (!dragId || dragId === row.dataset.id) return;
+      const below = row.classList.contains("drop-below");
+      const ids = sortedQ().map(([id]) => id).filter(id => id !== dragId);
+      ids.splice(ids.indexOf(row.dataset.id) + (below ? 1 : 0), 0, dragId);
+      saveOrder(ids);
+    };
+  });
+  $$("#qList [data-mv]").forEach(b => b.onclick = () => moveBy(b.dataset.id, Number(b.dataset.mv)));
+  $$("#qList [data-pos]").forEach(b => b.onclick = () => {
+    const ids = sortedQ().map(([id]) => id);
+    const to = Number(prompt(`Move this question to position (1–${ids.length}):`, ids.indexOf(b.dataset.pos) + 1));
+    if (!to) return;
+    moveTo(b.dataset.pos, Math.min(ids.length, Math.max(1, Math.round(to))) - 1);
+  });
+}
+let dragId = null;
+// Writes order 1..n for every question in one go, so positions never clash.
+async function saveOrder(ids) {
+  const upd = {};
+  ids.forEach((id, i) => { upd[`questions/${id}/order`] = i + 1; });
+  await update(ref(db), upd);
+}
+function moveTo(id, index) {
+  const ids = sortedQ().map(([x]) => x).filter(x => x !== id);
+  ids.splice(index, 0, id);
+  return saveOrder(ids);
+}
+function moveBy(id, dir) {
+  const ids = sortedQ().map(([x]) => x), i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  return moveTo(id, j);
 }
 function editQ(id) {
   editQid = id;
@@ -422,11 +475,7 @@ $("#qDup").onclick = async () => {
   q.title_en = (q.title_en || "") + " (copy)";
   const k = push(ref(db, "questions")).key; await set(ref(db, `questions/${k}`), q); editQ(k);
 };
-async function move(dir) {
-  const list = sortedQ(), i = list.findIndex(([id]) => id === editQid), j = i + dir;
-  if (i < 0 || j < 0 || j >= list.length) return;
-  await update(ref(db), { [`questions/${list[i][0]}/order`]: list[j][1].order || j, [`questions/${list[j][0]}/order`]: list[i][1].order || i });
-}
+function move(dir) { if (editQid) moveBy(editQid, dir); }
 $("#qUp").onclick = () => move(-1);
 $("#qDown").onclick = () => move(1);
 $("#qDel").onclick = async () => {
