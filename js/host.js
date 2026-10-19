@@ -401,18 +401,20 @@ $("#qImgClear").onclick = () => { form.elements.image.value = ""; showImgPrev();
 function renderQList() {
   const list = sortedQ();
   $("#qList").innerHTML = list.map(([id, q], i) => `
-    <div class="q-row ${id === editQid ? "sel" : ""}" draggable="true" data-id="${id}">
+    <div class="q-row ${id === editQid ? "sel" : ""} ${picked.has(id) ? "picked" : ""}" draggable="true" data-id="${id}">
+      <input type="checkbox" class="q-check" data-check="${id}" ${picked.has(id) ? "checked" : ""} title="Select">
       <span class="q-grip" title="Drag to move">⠿</span>
       <button type="button" class="q-pos" data-pos="${id}" title="Click to move to a position">${i + 1}</button>
       <span class="q-name">${TYPE_ICON[q.type] || ""} ${esc(q.title_en || q.title_ar || "Untitled")}</span>
       <span class="q-arrows">
         <button type="button" data-mv="-1" data-id="${id}" title="Move up" ${i === 0 ? "disabled" : ""}>▲</button>
         <button type="button" data-mv="1" data-id="${id}" title="Move down" ${i === list.length - 1 ? "disabled" : ""}>▼</button>
+        <button type="button" data-dup="${id}" title="Duplicate (copy goes right below)">⧉</button>
       </span>
     </div>`).join("") || `<p class="muted">No questions yet.</p>`;
 
   $$("#qList .q-row").forEach(row => {
-    row.onclick = e => { if (!e.target.closest("button")) editQ(row.dataset.id); };
+    row.onclick = e => { if (!e.target.closest("button, input")) editQ(row.dataset.id); };
     row.ondragstart = e => { dragId = row.dataset.id; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); };
     row.ondragend = () => { dragId = null; $$("#qList .q-row").forEach(r => r.classList.remove("dragging", "drop-above", "drop-below")); };
     row.ondragover = e => {
@@ -432,6 +434,16 @@ function renderQList() {
     };
   });
   $$("#qList [data-mv]").forEach(b => b.onclick = () => moveBy(b.dataset.id, Number(b.dataset.mv)));
+  $$("#qList [data-dup]").forEach(b => b.onclick = async () => { const [k] = await duplicate([b.dataset.dup]); editQ(k); });
+  $$("#qList [data-check]").forEach(cb => cb.onclick = e => {
+    const ids = sortedQ().map(([x]) => x), i = ids.indexOf(cb.dataset.check);
+    // Shift-click selects everything between the last click and this one
+    const range = e.shiftKey && lastPick >= 0 ? ids.slice(Math.min(i, lastPick), Math.max(i, lastPick) + 1) : [cb.dataset.check];
+    range.forEach(id => cb.checked ? picked.add(id) : picked.delete(id));
+    lastPick = i;
+    renderQList();
+  });
+  updateBulk();
   $$("#qList [data-pos]").forEach(b => b.onclick = () => {
     const ids = sortedQ().map(([id]) => id);
     const to = Number(prompt(`Move this question to position (1–${ids.length}):`, ids.indexOf(b.dataset.pos) + 1));
@@ -440,6 +452,43 @@ function renderQList() {
   });
 }
 let dragId = null;
+const picked = new Set();   // questions ticked in the list
+let lastPick = -1;
+function updateBulk() {
+  for (const id of [...picked]) if (!questions[id]) picked.delete(id);
+  const n = picked.size, total = Object.keys(questions).length;
+  $("#qSelCount").textContent = n ? `${n} selected` : "";
+  $("#qBulkDup").disabled = !n; $("#qBulkDel").disabled = !n;
+  $("#qBulkDel").textContent = n ? `🗑 Delete ${n}` : "🗑 Delete";
+  const all = $("#qSelAll");
+  all.checked = total > 0 && n === total; all.indeterminate = n > 0 && n < total;
+}
+// Copies each question and puts the copy right under its original. Returns the new ids.
+async function duplicate(ids) {
+  const list = sortedQ().map(([x]) => x), newIds = [], upd = {}, order = [];
+  for (const id of list) {
+    order.push(id);
+    if (ids.includes(id)) {
+      const k = push(ref(db, "questions")).key;
+      upd[`questions/${k}`] = { ...questions[id] };
+      order.push(k); newIds.push(k);
+    }
+  }
+  order.forEach((id, i) => { if (upd[`questions/${id}`]) upd[`questions/${id}`].order = i + 1; else upd[`questions/${id}/order`] = i + 1; });
+  await update(ref(db), upd);
+  toast(newIds.length === 1 ? "Duplicated — the copy is right below the original." : `Duplicated ${newIds.length} questions.`, "good", 2500);
+  return newIds;
+}
+async function deleteQuestions(ids) {
+  const upd = {};
+  ids.forEach(id => { upd[`questions/${id}`] = null; upd[`applied/${id}`] = null; });
+  if (ids.includes(game.qid) && game.phase !== "lobby") upd.game = { ...game, phase: "lobby", gallery: false, spotlight: null };
+  await update(ref(db), upd);
+  ids.forEach(id => picked.delete(id));
+  if (ids.includes(editQid)) editQ(null);
+  if (ids.includes(selQid)) { selQid = null; renderPreview(); }
+  toast(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}.`, "good", 2500);
+}
 // Writes order 1..n for every question in one go, so positions never clash.
 async function saveOrder(ids) {
   const upd = {};
@@ -478,11 +527,15 @@ form.onsubmit = async e => {
   $("#qMsg").textContent = "Saved ✓";
   $("#qFormTitle").textContent = `Edit question ${qIndex(editQid)}`;
 };
-$("#qDup").onclick = async () => {
-  if (!editQid) return;
-  const q = { ...questions[editQid], order: Math.max(...Object.values(questions).map(x => x.order || 0)) + 1 };
-  q.title_en = (q.title_en || "") + " (copy)";
-  const k = push(ref(db, "questions")).key; await set(ref(db, `questions/${k}`), q); editQ(k);
+$("#qDup").onclick = async () => { if (!editQid) return; const [k] = await duplicate([editQid]); editQ(k); };
+$("#qSelAll").onchange = e => { if (e.target.checked) sortedQ().forEach(([id]) => picked.add(id)); else picked.clear(); renderQList(); };
+$("#qBulkDup").onclick = async () => { await duplicate([...picked]); picked.clear(); renderQList(); };
+$("#qBulkDel").onclick = async () => {
+  const ids = [...picked].filter(id => questions[id]);
+  if (!ids.length) return;
+  const names = ids.slice(0, 5).map(id => "• " + (questions[id].title_en || questions[id].title_ar || "Untitled")).join("\n");
+  if (!confirm(`Delete ${ids.length} question${ids.length === 1 ? "" : "s"}?\n\n${names}${ids.length > 5 ? `\n…and ${ids.length - 5} more` : ""}`)) return;
+  await deleteQuestions(ids);
 };
 function move(dir) { if (editQid) moveBy(editQid, dir); }
 $("#qUp").onclick = () => move(-1);

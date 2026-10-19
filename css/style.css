@@ -347,7 +347,7 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .q-img-prev { max-height: 160px; max-width: 100%; border-radius: 12px; margin-top: 8px; display: block; }
 .img-field input[name=image] { font-size: .85rem; }
 .lobby-side .s-title { margin-top: 18px; font-size: 3rem; }
-.q-row { display: grid; grid-template-columns: 18px 34px 1fr auto; align-items: center; gap: 6px; background: #f5f3fd;
+.q-row { display: grid; grid-template-columns: 18px 14px 34px 1fr auto; align-items: center; gap: 6px; background: #f5f3fd;
   border: 2px solid transparent; border-radius: 12px; padding: 6px 8px; cursor: pointer; font-weight: 600; font-size: .95rem; position: relative; }
 .q-row.sel { border-color: var(--brand); background: #fff8e1; }
 .q-row.dragging { opacity: .4; }
@@ -368,3 +368,9 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .modal-card { max-width: 520px; width: 100%; }
 .modal-card .choice-btn { display: block; width: 100%; text-align: start; margin: 8px 0; padding: 12px 16px; }
 .modal-card .choice-btn small { display: block; font-weight: 500; opacity: .85; margin-top: 2px; }
+.q-check { width: 16px; height: 16px; margin: 0; transform: none; cursor: pointer; accent-color: var(--hot); }
+.q-row.picked { background: #ffe8ec; }
+.q-bulk { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 6px; padding: 6px 8px; background: #f8f7fd; border-radius: 12px; }
+.q-all { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .9rem; cursor: pointer; }
+.q-all input { width: 16px; height: 16px; margin: 0; transform: none; accent-color: var(--hot); }
+.small-btn { padding: 6px 10px; font-size: .85rem; border-radius: 10px; }

@@ -100,6 +100,13 @@
           <button id="qSamples" class="btn ghost">📦 Load camp pack (50)</button>
           <button id="qDelAll" class="btn danger">🗑 Delete all</button>
         </div>
+        <div class="q-bulk">
+          <label class="q-all"><input type="checkbox" id="qSelAll"> <span>Select all</span></label>
+          <span id="qSelCount" class="muted"></span>
+          <span class="spacer"></span>
+          <button type="button" id="qBulkDup" class="btn ghost small-btn" disabled>⧉ Duplicate</button>
+          <button type="button" id="qBulkDel" class="btn danger small-btn" disabled>🗑 Delete</button>
+        </div>
         <div id="qList" class="q-list"></div>
         <div class="row-btns">
           <button id="qExport" class="btn ghost">⬇ Export</button>
