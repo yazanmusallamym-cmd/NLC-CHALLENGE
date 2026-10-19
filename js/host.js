@@ -31,6 +31,15 @@ $("#hLoginForm").onsubmit = async e => {
   }
 };
 $("#hostLogout").onclick = () => signOut(auth).then(() => location.reload());
+$("#resetOpen").onclick = () => $("#resetModal").classList.remove("hidden");
+$("#resetCancel").onclick = () => $("#resetModal").classList.add("hidden");
+$("#resetModal").addEventListener("click", e => { if (e.target.id === "resetModal") e.currentTarget.classList.add("hidden"); });
+$$("#resetModal [data-reset]").forEach(b => b.onclick = async () => {
+  const all = b.dataset.reset === "all";
+  if (!confirm(all ? "Remove ALL players and clear every score? This can't be undone." : "Clear every score, grade and answer? This can't be undone.")) return;
+  $("#resetModal").classList.add("hidden");
+  await reset(all);
+});
 
 onAuthStateChanged(auth, async user => {
   if (!user) return showPane("hLogin");
@@ -42,7 +51,7 @@ onAuthStateChanged(auth, async user => {
     $("#hostLogout").classList.remove("hidden");
     return showPane("hLogin");
   }
-  $("#tabs").classList.remove("hidden"); $("#hostLogout").classList.remove("hidden");
+  $("#tabs").classList.remove("hidden"); $("#hostLogout").classList.remove("hidden"); $("#resetOpen").classList.remove("hidden");
   showTab("live");
   listen();
 });
@@ -598,10 +607,17 @@ async function teamAction(act, tid, pid) {
   }
 }
 async function reset(all) {
-  const upd = { submissions: null, images: null, assign: null, secrets: null, ledger: null, applied: null, played: null, live: null, game: { phase: "lobby" } };
+  // Everything that a game produces. Teams, questions and look & feel are not touched.
+  const upd = {
+    submissions: null, images: null, assign: null, secrets: null, ledger: null, applied: null,
+    played: null, live: null, game: { phase: "lobby", showBoard: false, boardSince: serverNow() }
+  };
   if (all) { upd.players = null; upd.counters = null; }
   await update(ref(db), upd);
-  toast(all ? "Everything reset — players need to rejoin." : "Scores and answers reset.", "good");
+  gradeResult = null; gradeQid = null; selQid = null;
+  $("#gradePanel").classList.add("hidden");
+  renderPreview(); renderRunList();
+  toast(all ? "Everything reset — players need to type their names again." : "Fresh start — all scores, grades and answers cleared.", "good");
 }
 $("#resetGame").onclick = () => confirm("Clear ALL points, answers and turn counts? Players stay.") && reset(false);
 $("#resetAll").onclick = () => confirm("Clear EVERYTHING including all players? Teams and questions stay.") && reset(true);

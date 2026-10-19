@@ -1,3 +1,10 @@
+/* Arabic text uses GE Dinar One (the file only has Arabic letters); English stays in Baloo. */
+@font-face {
+  font-family: "GE Dinar One";
+  src: url("../assets/fonts/GE-Dinar-One-Medium.otf") format("opentype");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
 /* ============ Theme — change these to match your camp ============ */
 :root {
   --bg: #1b1440;
@@ -13,7 +20,7 @@
   --radius: 18px;
   --shadow: 0 10px 30px rgba(10, 5, 40, 0.35);
   --bg-image: none;      /* set automatically from assets/background.jpg */
-  --font: "Baloo Bhaijaan 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "GE Dinar One", "Baloo Bhaijaan 2", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -320,7 +327,7 @@ button.chip { cursor: pointer; }
 @media (max-width: 1100px) { .look-grid { grid-template-columns: 1fr 1fr; } }
 
 /* ---------- Arabic line under English ---------- */
-.sub-ar { display: block; font-size: .78em; font-weight: 600; line-height: 1.35; opacity: .88;
+.sub-ar { display: block; font-size: .86em; font-weight: 600; line-height: 1.35; opacity: .88;
   text-align: inherit; margin-top: 2px; letter-spacing: 0; text-transform: none; }
 .btn:has(.sub-ar), .choice:has(.sub-ar) { flex-direction: column; gap: 0; line-height: 1.15; }
 .btn .sub-ar { font-size: .72em; opacity: .85; }
@@ -354,3 +361,10 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .q-arrows button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: .8rem; padding: 4px 5px; border-radius: 6px; }
 .q-arrows button:hover:not(:disabled) { background: #e6e2f7; color: var(--ink); }
 .q-arrows button:disabled { opacity: .25; cursor: default; }
+
+/* ---------- reset dialog ---------- */
+.reset-btn { background: var(--bad) !important; }
+.modal { position: fixed; inset: 0; background: rgba(10,5,40,.75); z-index: 95; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { max-width: 520px; width: 100%; }
+.modal-card .choice-btn { display: block; width: 100%; text-align: start; margin: 8px 0; padding: 12px 16px; }
+.modal-card .choice-btn small { display: block; font-weight: 500; opacity: .85; margin-top: 2px; }

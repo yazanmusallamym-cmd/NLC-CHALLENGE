@@ -20,6 +20,7 @@
     </nav>
     <div class="spacer"></div>
     <a class="pill-btn" href="screen.html" target="_blank">📺 Projector</a>
+    <button id="resetOpen" class="pill-btn reset-btn hidden">🔄 Reset</button>
     <button id="hostLogout" class="pill-btn hidden">Sign out</button>
   </header>
 
@@ -266,6 +267,17 @@
     <div class="card"><h3>Every point change</h3><div id="ledgerTable"></div></div>
   </section>
 
+  <div id="resetModal" class="modal hidden">
+    <div class="card modal-card">
+      <h2>🔄 Reset the game</h2>
+      <p class="muted">Teams, team logins, questions and your look &amp; feel are always kept.</p>
+      <button class="btn danger choice-btn" data-reset="scores">Fresh start, keep players
+        <small>Clears all points, deductions, grades, answers, photos, turns and the scoreboard. Phones stay signed in.</small></button>
+      <button class="btn danger choice-btn" data-reset="all">Reset EVERYTHING (for testing)
+        <small>All of the above + removes every player. Phones go back to “Who are you?” and numbers restart at #1.</small></button>
+      <button class="btn ghost choice-btn" id="resetCancel">Cancel</button>
+    </div>
+  </div>
   <div id="lightbox" class="lightbox hidden"><img alt=""><div class="lb-actions"></div></div>
   <script type="module" src="js/host.js"></script>
 </body>
