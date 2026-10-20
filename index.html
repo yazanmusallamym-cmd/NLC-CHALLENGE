@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1440">
+  <title>Team Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="phone">
+  <header class="topbar">
+    <img data-logo class="logo" alt="logo">
+    <div id="teamChip" class="team-chip hidden"></div>
+    <button id="langBtn" class="pill-btn" type="button">ع</button>
+  </header>
+
+  <main id="app">
+    <!-- 1. Team sign in -->
+    <section id="vLogin" class="view hidden">
+      <div class="card">
+        <h1 data-title></h1>
+        <h2 data-i18n="login_title"></h2>
+        <form id="loginForm" autocomplete="on">
+          <label><span data-i18n="email"></span><input id="loginEmail" type="email" required autocomplete="username"></label>
+          <label><span data-i18n="password"></span><input id="loginPass" type="password" required autocomplete="current-password"></label>
+          <button class="btn big" type="submit" data-i18n="sign_in"></button>
+          <p id="loginErr" class="err"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- 2. Real name -->
+    <section id="vName" class="view hidden">
+      <div class="card">
+        <h2 data-i18n="who_are_you"></h2>
+        <p class="muted" data-i18n="real_name_hint"></p>
+        <form id="nameForm">
+          <label><span data-i18n="first_name"></span><input id="firstName" required autocomplete="given-name" maxlength="30"></label>
+          <label><span data-i18n="last_name"></span><input id="lastName" required autocomplete="family-name" maxlength="30"></label>
+          <button class="btn big" type="submit" data-i18n="join"></button>
+          <p id="nameErr" class="err"></p>
+        </form>
+        <div id="reclaim" class="reclaim"></div>
+        <button id="logoutBtn2" class="link-btn" type="button" data-i18n="sign_out"></button>
+      </div>
+    </section>
+
+    <!-- 3. Game -->
+    <section id="vMain" class="view hidden">
+      <div id="meBar" class="me-bar"></div>
+      <div id="stage"></div>
+    </section>
+  </main>
+
+  <div id="spotOverlay" class="overlay spot-overlay hidden">
+    <div class="overlay-inner">
+      <button id="spotClose" class="spot-close" type="button" aria-label="Close">✕</button>
+      <div id="spotInner"></div>
+    </div>
+  </div>
+  <div id="boardOverlay" class="overlay hidden">
+    <div class="overlay-inner">
+      <h2 class="board-title" data-i18n="scoreboard"></h2>
+      <div id="board"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/player.js"></script>
+</body>
+</html>
