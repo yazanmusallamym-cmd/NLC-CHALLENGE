@@ -86,7 +86,7 @@ const T = {
     lineup_hint: "Line up in order without saying your number out loud!", squad_progress: "{n}/{m} of your squad answered",
     answer_was: "The answer", your_team_got: "Your team got", points: "pts", practice: "Practice round — no points",
     scoreboard: "Scoreboard", recent: "Latest adjustments", uploading: "Uploading…", failed: "Couldn't send — try again",
-    too_late: "Too late, time is up", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
+    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
   },
   ar: {
     login_title: "دخول الفريق", email: "بريد الفريق", password: "كلمة سر الفريق", sign_in: "دخول",
@@ -104,7 +104,7 @@ const T = {
     lineup_hint: "رتبوا حالكم بالترتيب بدون ما تقول رقمك بصوت عالي!", squad_progress: "{n}/{m} من فريقك جاوبوا",
     answer_was: "الجواب", your_team_got: "فريقك أخذ", points: "نقطة", practice: "جولة تجريبية — بدون نقاط",
     scoreboard: "النتائج", recent: "آخر التعديلات", uploading: "جاري الرفع…", failed: "ما انبعث — جرب مرة ثانية",
-    too_late: "متأخر، الوقت خلص", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
+    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
   }
 };
 export const lang = () => localStorage.getItem("tc_lang") || "en";

@@ -46,6 +46,7 @@ onAuthStateChanged(auth, async user => {
   }));
   unsubs.push(onValue(ref(db, "game"), s => { game = s.val() || {}; onGameChange(); }));
   unsubs.push(onValue(ref(db, "live"), s => { live = s.val(); viewKey = ""; render(); }));
+  unsubs.push(onValue(ref(db, "spot"), s => showSpot(s.val())));
   unsubs.push(onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; if (boardOpen) drawBoard(300); render(); }));
   unsubs.push(watchLedger((id, e) => adjustmentToast(e, teams, teamId)));
 });
@@ -182,7 +183,7 @@ function questionHTML(phase, sub) {
   }
   const intro = q.inputMode === "each" ? `<div class="turn-banner everyone">${b("everyone_turn")}</div>`
     : `<div class="turn-banner">${b("your_turn")}</div>`;
-  if (phase === "show") return head + intro + `<div class="card center"><h3>${b("get_ready")}</h3></div>`;
+  if (phase === "show") return head + intro + `<div class="card center"><h3>${b("get_ready")}</h3>${q.type === "lineup" ? `<p>${b("lineup_soon")}</p>` : ""}</div>`;
   if (sub) {
     const by = q.inputMode === "team" && sub.playerId !== pid ? b("submitted_by", { name: esc(sub.name) }) : "";
     const txt = q.type === "task" || q.type === "lineup" ? b("done_sent") : b("submitted");
@@ -324,4 +325,20 @@ function summaryAr(s) {
     .replace(/off by ([\d.]+)/g, "الفرق $1")
     .replace(/\b(\d+)(st|nd|rd|th)\b/g, "المركز $1")
     .replace(/(\d+(?:\.\d+)?)s\b/g, "$1 ث");
+}
+
+// ---------- photo spotlight (host pressed "Show on projector + phones") ----------
+let spotDismissed = null;
+function showSpot(sp) {
+  const ov = $("#spotOverlay");
+  if (!sp || !sp.image || spotDismissed === sp.at) { ov.classList.add("hidden"); return; }
+  const mine = sp.teamId === teamId;
+  $("#spotInner").innerHTML = `
+    <div class="spot-title">${textPair(sp.title_en, sp.title_ar)}</div>
+    <img class="spot-img" src="${sp.image}" alt="">
+    <div class="spot-cap ${mine ? "mine" : ""}" style="--c:${esc(sp.color)}"><span class="dot"></span>${esc(sp.teamName)}${sp.name ? ` · ${esc(sp.name)}` : ""}</div>
+    ${mine ? `<div class="spot-mine">${b("your_photo")}</div>` : ""}`;
+  ov.classList.remove("hidden");
+  if (mine && navigator.vibrate) navigator.vibrate(150);
+  $("#spotClose").onclick = () => { spotDismissed = sp.at; ov.classList.add("hidden"); };
 }

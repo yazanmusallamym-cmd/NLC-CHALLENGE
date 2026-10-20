@@ -156,6 +156,8 @@ function tick() {
 }
 
 // ---------------- LIVE: actions ----------------
+// A line-up always uses the WHOLE team (everyone gets a secret number) and one "We're done" per team.
+const norm = q => q && q.type === "lineup" ? { ...q, target: "all", inputMode: "team" } : q;
 function publicCopy(q, qid) {
   const keep = ["type", "title_en", "title_ar", "body_en", "body_ar", "image", "options_en", "options_ar",
     "inputMode", "target", "timeLimit", "practice", "requirePhoto", "scoring"];
@@ -166,7 +168,7 @@ function publicCopy(q, qid) {
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 async function launch(start) {
-  const qid = selQid, q = questions[qid];
+  const qid = selQid, q = norm(questions[qid]);
   if (!q) return;
   if (!teamIds().length) return toast("Create teams first (Teams tab).", "bad");
   if (game.phase === "open" && game.qid !== qid && !confirm("Another question is still open. Switch anyway?")) return;
@@ -190,6 +192,7 @@ async function launch(start) {
   }
   upd[`assign/${qid}`] = assignObj;
   upd.live = publicCopy(q, qid);
+  upd.spot = null;
   const now = serverNow();
   upd.game = {
     ...game, qid, phase: start ? "open" : "show",
@@ -211,8 +214,8 @@ $("#bAdd").onclick = () => {
   update(ref(db, "game"), { phase: "open", endsAt: base + 15000 });
 };
 $("#bLock").onclick = () => update(ref(db, "game"), { phase: "locked" });
-$("#bLobby").onclick = () => update(ref(db, "game"), { phase: "lobby", gallery: false, spotlight: null });
-$("#bGallery").onclick = () => update(ref(db, "game"), { gallery: !game.gallery, spotlight: null });
+$("#bLobby").onclick = () => update(ref(db), { "game/phase": "lobby", "game/gallery": false, "game/spotlight": null, spot: null });
+$("#bGallery").onclick = () => update(ref(db), { "game/gallery": !game.gallery, "game/spotlight": null, spot: null });
 $("#bBoard").onclick = () => update(ref(db, "game"), game.showBoard ? { showBoard: false, boardSince: serverNow() } : { showBoard: true });
 
 // ---------------- LIVE: answers ----------------
@@ -243,22 +246,71 @@ function renderLiveSubs() {
       ${ansHTML || `<p class="muted">waiting…</p>`}</div>`;
   }).join("");
   $("#liveCount").textContent = `${done}/${teamIds().length} teams done`;
+  if (!$("#lightbox").classList.contains("hidden")) drawLightbox();
   $$("#liveSubs .thumb").forEach(img => img.onclick = () => openLightbox(img.src, img.dataset.tid, img.dataset.sid));
 }
 
+// All submitted photos for the live question, in team order.
+function photoList() {
+  const out = [];
+  for (const tid of teamIds()) for (const [sid, src] of Object.entries(imagesQ[tid] || {})) {
+    const sub = (subsQ[tid] || {})[sid] || {};
+    out.push({ tid, sid, src, name: sub.name || "" });
+  }
+  return out;
+}
+let lbIndex = 0;
 function openLightbox(src, tid, sid) {
-  const lb = $("#lightbox");
-  lb.querySelector("img").src = src;
-  lb.querySelector(".lb-actions").innerHTML = `<button class="btn" id="lbShow">📺 Show this on the projector</button><button class="btn ghost" id="lbClose">Close</button>`;
-  lb.classList.remove("hidden");
-  $("#lbShow").onclick = () => { update(ref(db, "game"), { spotlight: { teamId: tid, sid }, gallery: true }); lb.classList.add("hidden"); };
+  const list = photoList();
+  lbIndex = Math.max(0, list.findIndex(x => x.tid === tid && x.sid === sid));
+  $("#lightbox").classList.remove("hidden");
+  drawLightbox();
+}
+function drawLightbox() {
+  const list = photoList(), lb = $("#lightbox");
+  if (!list.length) { lb.classList.add("hidden"); return; }
+  lbIndex = (lbIndex + list.length) % list.length;
+  const it = list[lbIndex], tm = teams[it.tid] || {};
+  const onAir = game.spotlight && game.spotlight.teamId === it.tid && game.spotlight.sid === it.sid;
+  lb.querySelector("img").src = it.src;
+  lb.querySelector(".lb-actions").innerHTML = `
+    <button class="btn ghost" id="lbPrev" ${list.length < 2 ? "disabled" : ""}>◀</button>
+    <span class="lb-cap"><span class="dot" style="background:${esc(tm.color || "#ccc")}"></span>${esc(tm.name || "")}${it.name ? ` · ${esc(it.name)}` : ""} <span class="muted">(${lbIndex + 1}/${list.length})</span></span>
+    <button class="btn ghost" id="lbNext" ${list.length < 2 ? "disabled" : ""}>▶</button>
+    <button class="btn ${onAir ? "on" : ""}" id="lbShow">${onAir ? "📺 Showing on projector + phones" : "📺 Show on projector + phones"}</button>
+    ${game.spotlight ? `<button class="btn ghost" id="lbHide">🙈 Hide from everyone</button>` : ""}
+    <button class="btn ghost" id="lbClose">Close</button>`;
+  $("#lbPrev").onclick = () => { lbIndex--; drawLightbox(); };
+  $("#lbNext").onclick = () => { lbIndex++; drawLightbox(); };
+  $("#lbShow").onclick = () => spotlightPhoto(it);
+  if ($("#lbHide")) $("#lbHide").onclick = () => clearSpotlight();
   $("#lbClose").onclick = () => lb.classList.add("hidden");
 }
+// Puts one photo on the projector AND every phone (phones can't read the photo store, so it's copied to "spot").
+async function spotlightPhoto(it) {
+  const tm = teams[it.tid] || {}, q = questions[game.qid] || {};
+  await update(ref(db), {
+    "game/spotlight": { teamId: it.tid, sid: it.sid }, "game/gallery": true,
+    spot: { image: it.src, teamId: it.tid, teamName: tm.name || "", color: tm.color || "#ccc", name: it.name || "",
+            title_en: q.title_en || "", title_ar: q.title_ar || "", at: serverNow() }
+  });
+  drawLightbox();
+}
+async function clearSpotlight() {
+  await update(ref(db), { "game/spotlight": null, "game/gallery": false, spot: null });
+  if (!$("#lightbox").classList.contains("hidden")) drawLightbox();
+}
+document.addEventListener("keydown", e => {
+  if ($("#lightbox").classList.contains("hidden")) return;
+  if (e.key === "ArrowRight") { lbIndex++; drawLightbox(); }
+  if (e.key === "ArrowLeft") { lbIndex--; drawLightbox(); }
+  if (e.key === "Escape") $("#lightbox").classList.add("hidden");
+});
 $("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") e.currentTarget.classList.add("hidden"); });
 
 // ---------------- LIVE: grading ----------------
 $("#bGrade").onclick = () => {
-  const qid = game.qid, q = questions[qid];
+  const qid = game.qid, q = norm(questions[qid]);
   if (!q) return;
   gradeResult = grade(q, teamIds(), assignQ, subsQ, players, game.openedAt || 0);
   gradeQid = qid;
@@ -312,7 +364,7 @@ function revealText(q, l) {
   return "";
 }
 async function reveal() {
-  const qid = game.qid, q = questions[qid];
+  const qid = game.qid, q = norm(questions[qid]);
   if (!q) return;
   const auto = grade(q, teamIds(), assignQ, subsQ, players, game.openedAt || 0);
   const vals = (gradeQid === qid && $("#gradePanel input[data-tid]")) ? finalValues() : ((applied[qid] && applied[qid].values) || {});
@@ -350,12 +402,13 @@ const form = $("#qForm");
 const NUMS = ["timeLimit", "groupSize", "lineupRange", "wrongPenalty", "tolerance"];
 const CHECKS = ["requirePhoto", "practice"];
 function formToQ() {
-  const f = new FormData(form), q = {};
+  const f = new FormData(form); let q = {};
   for (const [k, v] of f.entries()) q[k] = typeof v === "string" ? v.trim() : v;
   NUMS.forEach(k => q[k] = Number(q[k]) || 0);
   CHECKS.forEach(k => q[k] = !!form.elements[k].checked);
   q.options_en = (q.options_en || "").split("\n").map(s => s.trim()).filter(Boolean);
   q.options_ar = (q.options_ar || "").split("\n").map(s => s.trim()).filter(Boolean);
+  q = norm(q);
   return q;
 }
 function qToForm(q) {
@@ -370,7 +423,11 @@ function qToForm(q) {
   syncFormExtras();
 }
 function syncFormExtras() {
-  const type = form.elements.type.value, target = form.elements.target.value;
+  const type = form.elements.type.value;
+  const isLineup = type === "lineup";
+  if (isLineup) { form.elements.target.value = "all"; form.elements.inputMode.value = "team"; }
+  form.elements.target.disabled = isLineup; form.elements.inputMode.disabled = isLineup;
+  const target = form.elements.target.value;
   $$(".type-extra", form).forEach(el => el.classList.toggle("hidden", !el.dataset.for.split(" ").includes(type)));
   showImgPrev();
   $$(".target-extra", form).forEach(el => el.classList.toggle("hidden", el.dataset.for !== target));
@@ -482,7 +539,7 @@ async function duplicate(ids) {
 async function deleteQuestions(ids) {
   const upd = {};
   ids.forEach(id => { upd[`questions/${id}`] = null; upd[`applied/${id}`] = null; });
-  if (ids.includes(game.qid) && game.phase !== "lobby") upd.game = { ...game, phase: "lobby", gallery: false, spotlight: null };
+  if (ids.includes(game.qid) && game.phase !== "lobby") { upd.game = { ...game, phase: "lobby", gallery: false, spotlight: null }; upd.spot = null; }
   await update(ref(db), upd);
   ids.forEach(id => picked.delete(id));
   if (ids.includes(editQid)) editQ(null);
@@ -663,7 +720,7 @@ async function reset(all) {
   // Everything that a game produces. Teams, questions and look & feel are not touched.
   const upd = {
     submissions: null, images: null, assign: null, secrets: null, ledger: null, applied: null,
-    played: null, live: null, game: { phase: "lobby", showBoard: false, boardSince: serverNow() }
+    played: null, live: null, spot: null, game: { phase: "lobby", showBoard: false, boardSince: serverNow() }
   };
   if (all) { upd.players = null; upd.counters = null; }
   await update(ref(db), upd);
