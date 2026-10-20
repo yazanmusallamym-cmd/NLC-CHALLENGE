@@ -158,11 +158,14 @@ function tick() {
 // ---------------- LIVE: actions ----------------
 // A line-up always uses the WHOLE team (everyone gets a secret number) and one "We're done" per team.
 const norm = q => q && q.type === "lineup" ? { ...q, target: "all", inputMode: "team" } : q;
-function publicCopy(q, qid) {
-  const keep = ["type", "title_en", "title_ar", "body_en", "body_ar", "image", "options_en", "options_ar",
-    "inputMode", "target", "timeLimit", "practice", "requirePhoto", "scoring"];
-  const o = { qid };
-  keep.forEach(k => { if (q[k] !== undefined) o[k] = q[k]; });
+// What phones/projector get. Before the countdown (withContent=false) only the rules go out,
+// so nobody can see the question early.
+function publicCopy(q, qid, withContent = true) {
+  const rules = ["type", "inputMode", "target", "groupSize", "numbers", "timeLimit", "practice", "requirePhoto",
+    "scoring", "points", "wrongPenalty"];
+  const content = ["title_en", "title_ar", "body_en", "body_ar", "image", "options_en", "options_ar"];
+  const o = { qid, num: qIndex(qid), hasContent: withContent };
+  for (const k of withContent ? rules.concat(content) : rules) if (q[k] !== undefined) o[k] = q[k];
   return o;
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -191,7 +194,7 @@ async function launch(start) {
     }
   }
   upd[`assign/${qid}`] = assignObj;
-  upd.live = publicCopy(q, qid);
+  upd.live = publicCopy(q, qid, !!start);
   upd.spot = null;
   const now = serverNow();
   upd.game = {
@@ -204,14 +207,22 @@ async function launch(start) {
 }
 $("#bLaunch").onclick = () => launch(false);
 $("#bLaunchStart").onclick = () => launch(true);
-$("#bStart").onclick = () => {
-  const q = questions[game.qid] || {}, now = serverNow();
-  update(ref(db, "game"), { phase: "open", openedAt: now, endsAt: q.timeLimit ? now + q.timeLimit * 1000 : 0 });
-};
+// Starting (or adding time from the rules screen) reveals the full question and starts the clock together.
+function openQuestion(ms) {
+  const q = norm(questions[game.qid]) || {}, now = serverNow();
+  const upd = { "game/phase": "open" };
+  if (game.phase === "show") {
+    upd.live = publicCopy(q, game.qid, true);
+    upd["game/openedAt"] = now;
+  }
+  upd["game/endsAt"] = ms != null ? ms : (q.timeLimit ? now + q.timeLimit * 1000 : 0);
+  return update(ref(db), upd);
+}
+$("#bStart").onclick = () => openQuestion();
 $("#bAdd").onclick = () => {
   const now = serverNow();
   const base = game.phase === "open" && game.endsAt ? Math.max(game.endsAt, now) : now;
-  update(ref(db, "game"), { phase: "open", endsAt: base + 15000 });
+  openQuestion(base + 15000);
 };
 $("#bLock").onclick = () => update(ref(db, "game"), { phase: "locked" });
 $("#bLobby").onclick = () => update(ref(db), { "game/phase": "lobby", "game/gallery": false, "game/spotlight": null, spot: null });
@@ -370,7 +381,9 @@ async function reveal() {
   const vals = (gradeQid === qid && $("#gradePanel input[data-tid]")) ? finalValues() : ((applied[qid] && applied[qid].values) || {});
   const results = {};
   for (const tid of teamIds()) results[tid] = { points: q.practice ? 0 : (vals[tid] ?? auto[tid].auto), summary: auto[tid].summary };
-  await update(ref(db, "game"), { phase: "reveal", reveal: { answer_en: revealText(q, "en"), answer_ar: revealText(q, "ar"), results } });
+  // Revealing straight from the rules screen also shows the question text.
+  await update(ref(db), { "game/phase": "reveal", "game/reveal": { answer_en: revealText(q, "en"), answer_ar: revealText(q, "ar"), results },
+    live: publicCopy(q, qid, true) });
 }
 $("#bReveal").onclick = reveal;
 

@@ -1,6 +1,6 @@
 // Projector screen — sign in on host.html in the same browser first.
 import {
-  auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME, checkAdmin,
+  auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME, checkAdmin, rulesList,
   $, $$, esc, applyBranding, configBanner, qt, qOptions, watchLedger, adjustmentToast, renderBoard, TYPE_ICON
 } from "./common.js";
 
@@ -70,6 +70,7 @@ function render() {
   if (!inQ) stage.innerHTML = lobbyHTML(), drawQR();
   else if (game.gallery) stage.innerHTML = galleryHTML();
   else if (phase === "reveal") stage.innerHTML = revealHTML();
+  else if (phase === "show" || live.hasContent === false) stage.innerHTML = rulesHTML();
   else stage.innerHTML = questionHTML();
   patch(); tick();
 }
@@ -102,6 +103,18 @@ function lobbyTeamsHTML() {
       <div class="lt-head"><span class="dot"></span>${esc(teams[tid].name)}<span class="lt-count">${list.length}</span></div>
       <div class="chips">${list.map(p => `<span class="chip pop ${p.online ? "" : "offline"}">#${p.number} ${esc(p.name)}</span>`).join("")}</div></div>`;
   }).join("");
+}
+
+// ---------- rules (before the countdown) ----------
+function rulesHTML() {
+  const rows = rulesList(live).map(([ic, en, ar]) => `<li><span class="r-ic">${ic}</span><span><span class="en">${esc(en)}</span><span class="ar" dir="rtl">${esc(ar)}</span></span></li>`).join("");
+  return `<div class="s-rules">
+    <div class="s-rules-head"><span class="rules-num big">${live.num ? "Q" + live.num : ""}</span>
+      <div><div class="s-qtitle">Next question<div class="ar" dir="rtl">السؤال الجاي</div></div></div></div>
+    <ul class="s-rules-list">${rows}</ul>
+    <p class="s-hint">⏳ The question appears when the countdown starts · <span dir="rtl">السؤال رح يظهر لما يبلّش العد التنازلي</span></p>
+    <div class="s-teams" id="sTeams"></div>
+  </div>`;
 }
 
 // ---------- question ----------

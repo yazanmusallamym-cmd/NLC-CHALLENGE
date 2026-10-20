@@ -86,7 +86,7 @@ const T = {
     lineup_hint: "Line up in order without saying your number out loud!", squad_progress: "{n}/{m} of your squad answered",
     answer_was: "The answer", your_team_got: "Your team got", points: "pts", practice: "Practice round — no points",
     scoreboard: "Scoreboard", recent: "Latest adjustments", uploading: "Uploading…", failed: "Couldn't send — try again",
-    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
+    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", next_q: "Next question", rules_wait: "The question appears when the countdown starts", you_play: "You're playing this one!", you_bench: "You're on the bench for this one — help:", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
   },
   ar: {
     login_title: "دخول الفريق", email: "بريد الفريق", password: "كلمة سر الفريق", sign_in: "دخول",
@@ -104,7 +104,7 @@ const T = {
     lineup_hint: "رتبوا حالكم بالترتيب بدون ما تقول رقمك بصوت عالي!", squad_progress: "{n}/{m} من فريقك جاوبوا",
     answer_was: "الجواب", your_team_got: "فريقك أخذ", points: "نقطة", practice: "جولة تجريبية — بدون نقاط",
     scoreboard: "النتائج", recent: "آخر التعديلات", uploading: "جاري الرفع…", failed: "ما انبعث — جرب مرة ثانية",
-    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
+    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", next_q: "السؤال الجاي", rules_wait: "السؤال رح يظهر لما يبلّش العد التنازلي", you_play: "إنت بتلعب هالسؤال!", you_bench: "إنت احتياط بهالسؤال — ساعد:", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
   }
 };
 export const lang = () => localStorage.getItem("tc_lang") || "en";
@@ -344,6 +344,46 @@ export async function checkAdmin(uid) {
   }
   const v = snap.val();
   return v === true || v === "true" || v === 1;
+}
+
+// The rules of a question, as [icon, English, Arabic] rows — shown before the question itself is revealed.
+const AR_NUM = n => String(n); // regular digits: Arabic-Indic zero looks like a dot in GE Dinar
+export function rulesList(q) {
+  if (!q) return [];
+  const rows = [];
+  const type = {
+    text: ["✍️", "Type your answer", "اكتبوا الجواب"],
+    number: ["🎯", "Type a number", "اكتبوا رقم"],
+    choice: ["🔘", "Pick one of the options", "اختاروا جواب من الخيارات"],
+    photo: ["📸", "Send a photo", "أرسلوا صورة"],
+    task: q.requirePhoto ? ["🏃", "Do the task, then send a photo as proof", "نفّذوا المهمة وأرسلوا صورة كإثبات"]
+                         : ["🏃", "Do the task, then press “We're done”", "نفّذوا المهمة واضغطوا «خلصنا»"],
+    lineup: ["🔢", "Silent line-up — everyone gets a secret number", "ترتيب صامت — كل واحد بياخد رقم سري"]
+  }[q.type];
+  if (type) rows.push(type);
+  if (q.type !== "lineup") rows.push(q.inputMode === "each"
+    ? ["👥", "Every player on duty answers on their own phone", "كل لاعب مكلّف بيجاوب من جواله"]
+    : ["☝️", "One answer per team — the first one counts", "جواب واحد لكل فريق — أول جواب بينحسب"]);
+  const tgt = q.target || "all";
+  if (tgt === "rotate") { const n = Math.max(1, Number(q.groupSize) || 1); rows.push(["🔄", `${n} player${n > 1 ? "s" : ""} from each team`, `${AR_NUM(n)} من كل فريق`]); }
+  else if (tgt === "numbers") rows.push(["🎯", `Face-off: player #${q.numbers} of every team`, `مواجهة: اللاعب رقم ${AR_NUM(q.numbers || "")} من كل فريق`]);
+  else rows.push(["🙌", "The whole team plays", "كل الفريق بيلعب"]);
+  rows.push(q.timeLimit ? ["⏱️", `${q.timeLimit} seconds`, `${AR_NUM(q.timeLimit)} ثانية`] : ["⏱️", "No time limit", "بدون وقت"]);
+  if (q.practice) rows.push(["🧪", "Practice round — no points", "جولة تجريبية — بدون نقاط"]);
+  else {
+    const pts = String(q.points || "").split(/[,\s]+/).filter(Boolean);
+    const sc = {
+      speed: ["⚡", "Fastest correct answer wins", "الأسرع بالجواب الصح بيربح"],
+      closest: ["📏", "Closest answer wins", "الأقرب للجواب بيربح"],
+      correct: ["✅", "Every correct answer scores", "كل جواب صح بياخد نقاط"],
+      participation: ["🤝", "Points for everyone who takes part", "نقاط على قدّ المشاركين"],
+      manual: ["⚖️", "The host judges the answers", "المشرف بيحكم على الأجوبة"]
+    }[q.scoring || "speed"];
+    if (sc) rows.push(sc);
+    if (pts.length) rows.push(["🏆", pts.length > 1 ? `Points: ${pts.join(" / ")}` : `${pts[0]} points`, pts.length > 1 ? `النقاط: ${pts.map(AR_NUM).join(" / ")}` : `${AR_NUM(pts[0])} نقطة`]);
+    if (Number(q.wrongPenalty)) rows.push(["⚠️", `−${q.wrongPenalty} for a wrong answer`, `−${AR_NUM(q.wrongPenalty)} للجواب الغلط`]);
+  }
+  return rows;
 }
 
 export const TYPE_ICON = { text: "✍️", number: "🎯", choice: "🔘", photo: "📸", task: "🏃", lineup: "🔢" };

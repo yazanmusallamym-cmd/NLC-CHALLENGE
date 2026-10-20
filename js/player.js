@@ -3,7 +3,7 @@ import {
   auth, db, ref, onValue, get, set, update, push, runTransaction, serverTimestamp, onDisconnect,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow,
   $, $$, esc, t, b, tp, pair, textPair, qb, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
-  isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem
+  isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem, rulesList
 } from "./common.js";
 
 let teamId = null, teams = {}, players = {}, pid = null, game = {}, live = null;
@@ -166,8 +166,21 @@ function dutyNames() {
     .map(p => `#${p.number} ${esc(p.name)}`).join(", ");
 }
 
+function rulesHTML() {
+  const q = live;
+  const rows = rulesList(q).map(([ic, en, ar]) => `<li><span class="r-ic">${ic}</span><span class="r-tx">${pair(esc(en), esc(ar))}</span></li>`).join("");
+  const me = isAssigned()
+    ? `<div class="turn-banner">${b("you_play")}</div>`
+    : `<div class="card center bench-mini">🪑 ${b("you_bench")} <b>${dutyNames() || "…"}</b></div>`;
+  return `<div class="card rules-card">
+      <div class="rules-head"><span class="rules-num">${q.num ? "Q" + q.num : ""}</span><h2>${b("next_q")}</h2></div>
+      <ul class="rules-list">${rows}</ul>
+      <p class="rules-wait">⏳ ${b(q.type === "lineup" && isAssigned() ? "lineup_soon" : "rules_wait")}</p>
+    </div>${me}`;
+}
 function questionHTML(phase, sub) {
   const q = live;
+  if (phase === "show" || !q.hasContent && q.hasContent !== undefined) return rulesHTML();
   const head = `<div class="q-card card">
     <div class="q-meta"><span class="q-type">${TYPE_ICON[q.type] || "❓"}</span>${q.practice ? `<span class="tag">${b("practice")}</span>` : ""}
       <div class="timer" id="timer"></div></div>
