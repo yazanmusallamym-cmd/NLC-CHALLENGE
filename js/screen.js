@@ -3,6 +3,9 @@ import {
   auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME, checkAdmin, rulesList,
   $, $$, esc, applyBranding, configBanner, qt, qOptions, watchLedger, adjustmentToast, renderBoard, TYPE_ICON
 } from "./common.js";
+import { checkVersions } from "./common.js";
+export const PAGE_VERSION = "2026-10-21";
+checkVersions("screen.js", PAGE_VERSION);
 
 applyBranding();
 if (configBanner()) throw new Error("Firebase not configured");

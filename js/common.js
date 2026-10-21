@@ -10,6 +10,22 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { firebaseConfig, GAME } from "./config.js";
 
+// Bump on every update. Each page, script and the stylesheet carry the same stamp so a half-finished upload is easy to spot.
+export const APP_VERSION = "2026-10-21";
+export function checkVersions(pageScript, pageScriptVersion) {
+  const stale = [];
+  const htmlV = document.documentElement.dataset.version || "";
+  const cssV = getComputedStyle(document.documentElement).getPropertyValue("--app-version").replace(/["'\s]/g, "");
+  const page = (location.pathname.split("/").pop() || "index.html");
+  if (htmlV !== APP_VERSION) stale.push(page);
+  if (cssV !== APP_VERSION) stale.push("css/style.css");
+  if (pageScriptVersion !== APP_VERSION) stale.push("js/" + pageScript);
+  if (!stale.length) return;
+  const box = document.createElement("div");
+  box.className = "setup-banner";
+  box.innerHTML = `⚠️ Some files on your site are out of date: <b>${stale.join(", ")}</b> — upload the latest version of ${stale.length > 1 ? "them" : "it"} (keep the folders), then press Ctrl+F5.`;
+  document.body.prepend(box);
+}
 export const configured = !String(firebaseConfig.apiKey).startsWith("PASTE");
 // Players get their own sign-in slot, so a team login and the host login can live in the same browser.
 const IS_PLAYER = !/(host|screen)\.html$/i.test(location.pathname);

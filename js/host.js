@@ -8,6 +8,9 @@ import {
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow, firebaseConfig,
   $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin
 } from "./common.js";
+import { checkVersions } from "./common.js";
+export const PAGE_VERSION = "2026-10-21";
+checkVersions("host.js", PAGE_VERSION);
 import { grade, pickPlayers } from "./grading.js";
 import { SAMPLE_QUESTIONS } from "./samples.js";
 
@@ -471,19 +474,28 @@ $("#qImgFile").onchange = async e => {
   e.target.value = "";
 };
 $("#qImgClear").onclick = () => { form.elements.image.value = ""; showImgPrev(); };
+// Reveal picture (e.g. the zoomed-out photo). Guarded so an older host.html can't break the editor.
 function showRevPrev() {
-  const v = form.elements.revealImage.value.trim();
-  $("#qRevPrev").classList.toggle("hidden", !v);
-  if (v) $("#qRevPrev").src = v;
+  const f = form.elements.revealImage, prev = $("#qRevPrev");
+  if (!f || !prev) return;
+  const v = f.value.trim();
+  prev.classList.toggle("hidden", !v);
+  if (v) prev.src = v;
 }
-form.elements.revealImage.addEventListener("input", showRevPrev);
-$("#qRevFile").onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
-  try { form.elements.revealImage.value = await compressImage(f, 1400, 0.8); showRevPrev(); $("#qMsg").textContent = "Reveal picture added — press Save."; }
-  catch { $("#qMsg").textContent = "Couldn't read that picture."; }
-  e.target.value = "";
-};
-$("#qRevClear").onclick = () => { form.elements.revealImage.value = ""; showRevPrev(); };
+if (form.elements.revealImage && $("#qRevFile")) {
+  form.elements.revealImage.addEventListener("input", showRevPrev);
+  $("#qRevFile").onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    $("#qMsg").textContent = "Adding reveal picture…";
+    try {
+      form.elements.revealImage.value = await compressImage(file, 1400, 0.8);
+      showRevPrev();
+      $("#qMsg").textContent = "Reveal picture added — press 💾 Save.";
+    } catch { $("#qMsg").textContent = "Couldn't read that picture — try a JPG or PNG (iPhone HEIC photos don't work in every browser)."; }
+    e.target.value = "";
+  };
+  $("#qRevClear").onclick = () => { form.elements.revealImage.value = ""; showRevPrev(); };
+}
 
 function renderQList() {
   const list = sortedQ();

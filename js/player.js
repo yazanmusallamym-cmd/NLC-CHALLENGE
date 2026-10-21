@@ -5,6 +5,9 @@ import {
   $, $$, esc, t, b, tp, pair, textPair, qb, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
   isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem, rulesList
 } from "./common.js";
+import { checkVersions } from "./common.js";
+export const PAGE_VERSION = "2026-10-21";
+checkVersions("player.js", PAGE_VERSION);
 
 let teamId = null, teams = {}, players = {}, pid = null, game = {}, live = null;
 let assign = {}, subs = {}, secret = null, ledger = {};

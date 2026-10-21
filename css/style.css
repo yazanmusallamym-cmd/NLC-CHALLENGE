@@ -7,6 +7,7 @@
 }
 /* ============ Theme — change these to match your camp ============ */
 :root {
+  --app-version: "2026-10-21";
   --bg: #1b1440;
   --bg2: #2b1d6b;
   --card: rgba(255, 255, 255, 0.96);
