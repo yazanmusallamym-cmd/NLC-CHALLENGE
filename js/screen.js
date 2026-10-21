@@ -192,7 +192,9 @@ function revealHTML() {
   const ans = [r.answer_en, r.answer_ar && r.answer_ar !== r.answer_en ? r.answer_ar : ""].filter(Boolean);
   return `<div class="s-reveal">
     <div class="s-qtitle small">${bi(live, "title")}</div>
+    ${live.revealImage ? `<div class="s-reveal-wrap"><div class="reveal-pic big"><img src="${esc(live.revealImage)}" alt=""></div><div>` : "<div>"}
     ${ans.length ? `<div class="s-answer">${ans.map(a => `<div>${esc(a)}</div>`).join("")}</div>` : ""}
+    ${live.revealImage ? "</div></div>" : "</div>"}
     <div class="s-results">${teamIds().sort((a, b) => ((res[b] || {}).points || 0) - ((res[a] || {}).points || 0)).map(tid => {
       const x = res[tid] || { points: 0, summary: "" };
       return `<div class="sr-row" style="--c:${esc(teams[tid].color)}"><span class="dot"></span><b>${esc(teams[tid].name)}</b>

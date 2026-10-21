@@ -526,3 +526,12 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .s-rules-list .r-ic { width: 40px; font-size: 1.8rem; }
 .s-rules-list .en { display: block; }
 .s-rules-list .ar { display: block; font-size: .72em; opacity: .85; text-align: inherit; margin-top: 4px; font-weight: 600; }
+
+/* ---------- reveal picture (e.g. the zoomed-out photo) ---------- */
+.reveal-pic { overflow: hidden; border-radius: 16px; margin: 12px 0; box-shadow: var(--shadow); background: #000; }
+.reveal-pic img { display: block; width: 100%; max-height: 60vh; object-fit: contain; animation: zoomOutReveal 1.6s cubic-bezier(.2,.7,.2,1) both; }
+.reveal-pic.big img { max-height: 62vh; }
+@keyframes zoomOutReveal { from { transform: scale(3.2); filter: blur(2px); } to { transform: scale(1); filter: none; } }
+.s-reveal-wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.s-reveal-wrap .s-answer { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .reveal-pic img { animation: none; } }

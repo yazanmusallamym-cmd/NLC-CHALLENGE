@@ -168,6 +168,12 @@
             <label>Reveal text EN (optional)<input name="reveal_en"></label>
             <label dir="rtl">نص الإجابة (اختياري)<input name="reveal_ar"></label>
           </div>
+          <div class="img-field">
+            <label>Reveal picture (optional) — shown when you press Reveal, e.g. the zoomed-out photo<input name="revealImage" placeholder="Upload below, or paste a link"></label>
+            <div class="row-btns"><label class="btn">🖼 Upload reveal picture<input id="qRevFile" type="file" accept="image/*" hidden></label>
+            <button type="button" id="qRevClear" class="btn ghost">Remove</button></div>
+            <img id="qRevPrev" class="q-img-prev hidden" alt="">
+          </div>
         </fieldset>
 
         <fieldset>

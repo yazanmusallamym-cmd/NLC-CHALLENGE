@@ -160,12 +160,13 @@ function tick() {
 const norm = q => q && q.type === "lineup" ? { ...q, target: "all", inputMode: "team" } : q;
 // What phones/projector get. Before the countdown (withContent=false) only the rules go out,
 // so nobody can see the question early.
-function publicCopy(q, qid, withContent = true) {
+function publicCopy(q, qid, withContent = true, withReveal = false) {
   const rules = ["type", "inputMode", "target", "groupSize", "numbers", "timeLimit", "practice", "requirePhoto",
     "scoring", "points", "wrongPenalty"];
   const content = ["title_en", "title_ar", "body_en", "body_ar", "image", "options_en", "options_ar"];
   const o = { qid, num: qIndex(qid), hasContent: withContent };
   for (const k of withContent ? rules.concat(content) : rules) if (q[k] !== undefined) o[k] = q[k];
+  if (withReveal && q.revealImage) o.revealImage = q.revealImage;
   return o;
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -176,7 +177,8 @@ async function launch(start) {
   if (!teamIds().length) return toast("Create teams first (Teams tab).", "bad");
   if (game.phase === "open" && game.qid !== qid && !confirm("Another question is still open. Switch anyway?")) return;
   if (applied[qid] && !confirm("This question was already scored. Run it again? (Re-grading will replace its points.)")) return;
-  const upd = { [`submissions/${qid}`]: null, [`images/${qid}`]: null, [`secrets/${qid}`]: null };
+  const upd = { [`submissions/${qid}`]: null, [`images/${qid}`]: null };
+  const secretsObj = {};   // written as ONE node (Firebase rejects clearing a path and writing inside it in the same update)
   const assignObj = {};
   for (const tid of teamIds()) {
     const tp = players[tid] || {};
@@ -186,14 +188,16 @@ async function launch(start) {
     assignObj[tid] = Object.keys(a).length ? a : { _all: true };
     for (const p of picked) upd[`played/${tid}/${p}`] = ((played[tid] || {})[p] || 0) + 1;
     if (q.type === "lineup" && picked.length) {
-      const range = Number(q.lineupRange) || 0;
-      let nums;
-      if (range >= picked.length) { const s = new Set(); while (s.size < picked.length) s.add(1 + Math.floor(Math.random() * range)); nums = [...s]; }
-      else nums = shuffle(picked.map((_, i) => i + 1));
-      picked.forEach((p, i) => { upd[`secrets/${qid}/${tid}/${p}`] = nums[i]; });
+      // Different random numbers for everyone on the team, from 1 to the chosen maximum (default 99).
+      const range = Math.max(Number(q.lineupRange) || 99, picked.length);
+      const pool = new Set();
+      while (pool.size < picked.length) pool.add(1 + Math.floor(Math.random() * range));
+      const nums = [...pool];
+      secretsObj[tid] = {}; picked.forEach((p, i) => { secretsObj[tid][p] = nums[i]; });
     }
   }
   upd[`assign/${qid}`] = assignObj;
+  upd[`secrets/${qid}`] = Object.keys(secretsObj).length ? secretsObj : null;
   upd.live = publicCopy(q, qid, !!start);
   upd.spot = null;
   const now = serverNow();
@@ -383,7 +387,7 @@ async function reveal() {
   for (const tid of teamIds()) results[tid] = { points: q.practice ? 0 : (vals[tid] ?? auto[tid].auto), summary: auto[tid].summary };
   // Revealing straight from the rules screen also shows the question text.
   await update(ref(db), { "game/phase": "reveal", "game/reveal": { answer_en: revealText(q, "en"), answer_ar: revealText(q, "ar"), results },
-    live: publicCopy(q, qid, true) });
+    live: publicCopy(q, qid, true, true) });
 }
 $("#bReveal").onclick = reveal;
 
@@ -442,7 +446,7 @@ function syncFormExtras() {
   form.elements.target.disabled = isLineup; form.elements.inputMode.disabled = isLineup;
   const target = form.elements.target.value;
   $$(".type-extra", form).forEach(el => el.classList.toggle("hidden", !el.dataset.for.split(" ").includes(type)));
-  showImgPrev();
+  showImgPrev(); showRevPrev();
   $$(".target-extra", form).forEach(el => el.classList.toggle("hidden", el.dataset.for !== target));
   const hints = {
     speed: "Teams with a correct answer are ranked by speed: 1st gets the first number, 2nd the second… In “every player” mode the team's time is when its LAST player answers, and points scale with how many got it right.",
@@ -467,6 +471,19 @@ $("#qImgFile").onchange = async e => {
   e.target.value = "";
 };
 $("#qImgClear").onclick = () => { form.elements.image.value = ""; showImgPrev(); };
+function showRevPrev() {
+  const v = form.elements.revealImage.value.trim();
+  $("#qRevPrev").classList.toggle("hidden", !v);
+  if (v) $("#qRevPrev").src = v;
+}
+form.elements.revealImage.addEventListener("input", showRevPrev);
+$("#qRevFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { form.elements.revealImage.value = await compressImage(f, 1400, 0.8); showRevPrev(); $("#qMsg").textContent = "Reveal picture added — press Save."; }
+  catch { $("#qMsg").textContent = "Couldn't read that picture."; }
+  e.target.value = "";
+};
+$("#qRevClear").onclick = () => { form.elements.revealImage.value = ""; showRevPrev(); };
 
 function renderQList() {
   const list = sortedQ();

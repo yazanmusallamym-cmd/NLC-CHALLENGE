@@ -14,7 +14,7 @@ const ALL = [
     body_ar: "صورة مكبّرة كثير لشي موجود هون بالمخيم. أول جواب صح بيربح!",
     type: "text", answer: "", inputMode: "team", target: "rotate", groupSize: 2, timeLimit: 40,
     scoring: "speed", points: P, wrongPenalty: 10,
-    notes: "✏️ Take a very close-up photo of an object at camp (a door handle, a guitar string, a shoe lace…). Press 📷 Upload picture, then type the answer(s) in Correct answer, e.g. guitar|جيتار. Wrong guesses cost 10."
+    notes: "✏️ Take a very close-up photo of an object at camp (a door handle, a guitar string, a shoe lace…). Press 📷 Upload picture for the zoomed-in shot, and 🖼 Upload reveal picture for the full zoomed-out photo (it appears when you press Reveal). Type the answer(s) in Correct answer, e.g. guitar|جيتار. Wrong guesses cost 10."
   })),
   ...[1, 2, 3].map(n => q({
     title_en: `🗣️ Who always says this? (${n})`, title_ar: `🗣️ مين دايماً بيحكي هالجملة؟ (${n})`,

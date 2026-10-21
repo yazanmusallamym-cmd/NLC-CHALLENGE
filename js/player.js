@@ -322,6 +322,7 @@ function revealHTML() {
   return `<div class="card center reveal-card">
     <h3>${qb(live, "title")}</h3>
     ${ans ? `<p class="muted">${b("answer_was")}</p><div class="reveal-answer">${ans}</div>` : ""}
+    ${live.revealImage ? `<div class="reveal-pic"><img src="${esc(live.revealImage)}" alt=""></div>` : ""}
     ${live.practice ? `<p class="tag">${b("practice")}</p>` : res ? `<p class="muted">${b("your_team_got")}</p>
       <div class="reveal-points ${res.points < 0 ? "neg" : ""}">${res.points > 0 ? "+" : ""}${res.points} ${pair(t("points"), "")}</div>
       ${res.summary ? `<p class="muted">${textPair(res.summary, summaryAr(res.summary))}</p>` : ""}` : ""}
