@@ -7,7 +7,7 @@
 }
 /* ============ Theme — change these to match your camp ============ */
 :root {
-  --app-version: "2026-10-21";
+  --app-version: "2026-10-22";
   --bg: #1b1440;
   --bg2: #2b1d6b;
   --card: rgba(255, 255, 255, 0.96);
@@ -536,3 +536,11 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .s-reveal-wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: start; }
 .s-reveal-wrap .s-answer { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .reveal-pic img { animation: none; } }
+
+.adj-hint { margin: -4px 0 10px; font-size: .82rem; line-height: 1.4; }
+.adj-silent { display: flex; align-items: center; gap: 8px; font-size: .85rem; font-weight: 600; margin: 4px 0 6px; cursor: pointer; }
+.adj-silent input { width: 16px; height: 16px; margin: 0; transform: none; accent-color: var(--ink); }
+.adj-btns .pos::after { content: " 🤫"; font-size: .7em; }
+.reveal-result { font-size: 1.4rem; font-weight: 800; margin: 4px 0 6px; }
+.small-note { font-size: .9rem; }
+.s-results .sr-sum { font-size: 1.5rem; opacity: .95; margin-inline-start: auto; }

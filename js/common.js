@@ -11,7 +11,7 @@ import {
 import { firebaseConfig, GAME } from "./config.js";
 
 // Bump on every update. Each page, script and the stylesheet carry the same stamp so a half-finished upload is easy to spot.
-export const APP_VERSION = "2026-10-21";
+export const APP_VERSION = "2026-10-22";
 export function checkVersions(pageScript, pageScriptVersion) {
   const stale = [];
   const htmlV = document.documentElement.dataset.version || "";
@@ -102,7 +102,7 @@ const T = {
     lineup_hint: "Line up in order without saying your number out loud!", squad_progress: "{n}/{m} of your squad answered",
     answer_was: "The answer", your_team_got: "Your team got", points: "pts", practice: "Practice round — no points",
     scoreboard: "Scoreboard", recent: "Latest adjustments", uploading: "Uploading…", failed: "Couldn't send — try again",
-    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", next_q: "Next question", rules_wait: "The question appears when the countdown starts", you_play: "You're playing this one!", you_bench: "You're on the bench for this one — help:", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
+    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", your_result: "Your team's result", points_later: "🏆 Points stay secret until the scoreboard!", next_q: "Next question", rules_wait: "The question appears when the countdown starts", you_play: "You're playing this one!", you_bench: "You're on the bench for this one — help:", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
   },
   ar: {
     login_title: "دخول الفريق", email: "بريد الفريق", password: "كلمة سر الفريق", sign_in: "دخول",
@@ -120,7 +120,7 @@ const T = {
     lineup_hint: "رتبوا حالكم بالترتيب بدون ما تقول رقمك بصوت عالي!", squad_progress: "{n}/{m} من فريقك جاوبوا",
     answer_was: "الجواب", your_team_got: "فريقك أخذ", points: "نقطة", practice: "جولة تجريبية — بدون نقاط",
     scoreboard: "النتائج", recent: "آخر التعديلات", uploading: "جاري الرفع…", failed: "ما انبعث — جرب مرة ثانية",
-    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", next_q: "السؤال الجاي", rules_wait: "السؤال رح يظهر لما يبلّش العد التنازلي", you_play: "إنت بتلعب هالسؤال!", you_bench: "إنت احتياط بهالسؤال — ساعد:", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
+    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", your_result: "نتيجة فريقكم", points_later: "🏆 النقاط سرّية لحد ما تظهر النتائج!", next_q: "السؤال الجاي", rules_wait: "السؤال رح يظهر لما يبلّش العد التنازلي", you_play: "إنت بتلعب هالسؤال!", you_bench: "إنت احتياط بهالسؤال — ساعد:", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
   }
 };
 export const lang = () => localStorage.getItem("tc_lang") || "en";
@@ -223,6 +223,17 @@ export function toast(html, kind = "info", ms = 4500) {
 }
 
 // Calls cb(entryId, entry) for ledger entries added after the page loaded.
+// Only deductions are announced to teams; bonuses and quiet corrections stay hidden until the scoreboard.
+export const isPublic = e => !!e && e.kind !== "round" && (e.public === true || (e.public === undefined && e.kind === "penalty"));
+// Calls cb(id, notice) for announcements made after the page loaded.
+export function watchNotices(cb) {
+  let seen = null;
+  return onValue(ref(db, "notices"), snap => {
+    const all = snap.val() || {};
+    if (seen === null) { seen = new Set(Object.keys(all)); return; }
+    for (const id of Object.keys(all)) if (!seen.has(id)) { seen.add(id); cb(id, all[id]); }
+  }, () => {});
+}
 export function watchLedger(cb) {
   let seen = null;
   return onValue(ref(db, "ledger"), snap => {
@@ -261,11 +272,13 @@ const rankMap = (order, vals) => {
 
 // Animated scoreboard. `from` = totals to start the animation from (or null to use totals at `since`).
 // Returns the totals it ended on, so the caller can animate from there next time.
-export function renderBoard(el, { teams, ledger, since = 0, from = null, highlight = null, delay = 900 }) {
+// Draws the scoreboard. Phones/projector pass `board` (the snapshot the host publishes when the
+// scoreboard is shown); the host can pass the full ledger instead.
+export function renderBoard(el, { teams, ledger, since = 0, board = null, from = null, highlight = null, delay = 900 }) {
   const ids = Object.keys(teams || {});
   if (!ids.length) { el.innerHTML = ""; return {}; }
-  const now = totals(ledger, ids);
-  const base = totals(ledger, ids, since);
+  const now = board ? Object.fromEntries(ids.map(id => [id, Number((board.totals || {})[id]) || 0])) : totals(ledger, ids);
+  const base = board ? Object.fromEntries(ids.map(id => [id, Number((board.base || {})[id]) || 0])) : totals(ledger, ids, since);
   const start = from ? Object.fromEntries(ids.map(id => [id, from[id] ?? base[id]])) : base;
   const byName = (a, b) => (teams[a].name || "").localeCompare(teams[b].name || "");
   const startOrder = [...ids].sort((a, b) => start[b] - start[a] || byName(a, b));
@@ -275,8 +288,8 @@ export function renderBoard(el, { teams, ledger, since = 0, from = null, highlig
   const maxV = Math.max(1, ...ids.map(id => Math.max(now[id], start[id])));
   const pct = v => Math.max(3, Math.round((Math.max(0, v) / maxV) * 100));
 
-  const feed = Object.values(ledger || {})
-    .filter(e => e.kind !== "round" && (e.time || 0) > since && teams[e.teamId])
+  const feed = (board ? Object.values(board.feed || {}) : Object.values(ledger || {}).filter(isPublic))
+    .filter(e => (board || (e.time || 0) > since) && teams[e.teamId])
     .sort((a, b) => b.time - a.time).slice(0, 5);
 
   el.innerHTML = `

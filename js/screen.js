@@ -1,16 +1,16 @@
 // Projector screen — sign in on host.html in the same browser first.
 import {
   auth, db, ref, onValue, get, onAuthStateChanged, serverNow, GAME, checkAdmin, rulesList,
-  $, $$, esc, applyBranding, configBanner, qt, qOptions, watchLedger, adjustmentToast, renderBoard, TYPE_ICON
+  $, $$, esc, applyBranding, configBanner, qt, qOptions, watchNotices, adjustmentToast, renderBoard, TYPE_ICON
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-21";
+export const PAGE_VERSION = "2026-10-22";
 checkVersions("screen.js", PAGE_VERSION);
 
 applyBranding();
 if (configBanner()) throw new Error("Firebase not configured");
 
-let game = {}, live = null, teams = {}, players = {}, ledger = {}, assignQ = {}, subsQ = {}, imagesQ = {};
+let game = {}, live = null, teams = {}, players = {}, board = null, assignQ = {}, subsQ = {}, imagesQ = {};
 let qUnsubs = [], imgUnsub = null, imgQid = null, lastQid, viewKey = "", boardOpen = false, boardFrom = null;
 const stage = $("#sStage");
 
@@ -25,9 +25,9 @@ onAuthStateChanged(auth, async user => {
   onValue(ref(db, "teams"), s => { teams = s.val() || {}; viewKey = ""; render(); });
   onValue(ref(db, "players"), s => { players = s.val() || {}; render(); });
   onValue(ref(db, "live"), s => { live = s.val(); viewKey = ""; render(); });
-  onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; if (boardOpen) drawBoard(300); });
+  onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 1200); });
   onValue(ref(db, "game"), s => { game = s.val() || { phase: "lobby" }; onGame(); });
-  watchLedger((id, e) => adjustmentToast(e, teams, null));
+  watchNotices((id, e) => adjustmentToast(e, teams, null));
   setInterval(tick, 200);
 });
 
@@ -54,7 +54,8 @@ function onGame() {
   viewKey = ""; render();
 }
 function drawBoard(delay) {
-  boardFrom = renderBoard($("#sBoardInner"), { teams, ledger, since: game.boardSince || 0, from: boardFrom, delay });
+  if (!board) return;
+  boardFrom = renderBoard($("#sBoardInner"), { teams, board, from: boardFrom, delay });
 }
 
 const teamIds = () => Object.keys(teams).sort((a, b) => (teams[a].name || "").localeCompare(teams[b].name || ""));
@@ -198,11 +199,12 @@ function revealHTML() {
     ${live.revealImage ? `<div class="s-reveal-wrap"><div class="reveal-pic big"><img src="${esc(live.revealImage)}" alt=""></div><div>` : "<div>"}
     ${ans.length ? `<div class="s-answer">${ans.map(a => `<div>${esc(a)}</div>`).join("")}</div>` : ""}
     ${live.revealImage ? "</div></div>" : "</div>"}
-    <div class="s-results">${teamIds().sort((a, b) => ((res[b] || {}).points || 0) - ((res[a] || {}).points || 0)).map(tid => {
-      const x = res[tid] || { points: 0, summary: "" };
+    <div class="s-results">${teamIds().sort((a, b) => ((res[a] || {}).order ?? 99) - ((res[b] || {}).order ?? 99)).map(tid => {
+      const x = res[tid] || { summary: "" };
       return `<div class="sr-row" style="--c:${esc(teams[tid].color)}"><span class="dot"></span><b>${esc(teams[tid].name)}</b>
-        <span class="sr-sum">${esc(x.summary || "")}</span><span class="sr-pts ${x.points < 0 ? "neg" : ""}">${live.practice ? "—" : (x.points > 0 ? "+" : "") + x.points}</span></div>`;
-    }).join("")}</div></div>`;
+        <span class="sr-sum">${esc(x.summary || "—")}</span></div>`;
+    }).join("")}</div>
+    <p class="s-hint">🏆 Points stay secret until the scoreboard · <span dir="rtl">النقاط سرّية لحد ما تظهر النتائج</span></p></div>`;
 }
 
 // ---------- photos ----------

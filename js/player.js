@@ -3,14 +3,14 @@ import {
   auth, db, ref, onValue, get, set, update, push, runTransaction, serverTimestamp, onDisconnect,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow,
   $, $$, esc, t, b, tp, pair, textPair, qb, lang, setLang, applyLang, applyBranding, configBanner, qt, qOptions,
-  isRealName, titleCase, compressImage, toast, watchLedger, adjustmentToast, renderBoard, TYPE_ICON, authProblem, rulesList
+  isRealName, titleCase, compressImage, toast, watchNotices, adjustmentToast, renderBoard, TYPE_ICON, authProblem, rulesList
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-21";
+export const PAGE_VERSION = "2026-10-22";
 checkVersions("player.js", PAGE_VERSION);
 
 let teamId = null, teams = {}, players = {}, pid = null, game = {}, live = null;
-let assign = {}, subs = {}, secret = null, ledger = {};
+let assign = {}, subs = {}, secret = null, board = null;
 let unsubs = [], qUnsubs = [], viewKey = "", boardFrom = null, boardOpen = false, timerHandle = null;
 let selectedChoice = null, pendingImage = null;
 
@@ -50,8 +50,9 @@ onAuthStateChanged(auth, async user => {
   unsubs.push(onValue(ref(db, "game"), s => { game = s.val() || {}; onGameChange(); }));
   unsubs.push(onValue(ref(db, "live"), s => { live = s.val(); viewKey = ""; render(); }));
   unsubs.push(onValue(ref(db, "spot"), s => showSpot(s.val())));
-  unsubs.push(onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; if (boardOpen) drawBoard(300); render(); }));
-  unsubs.push(watchLedger((id, e) => adjustmentToast(e, teams, teamId)));
+  // Scores arrive only as the snapshot the host publishes when showing the scoreboard.
+  unsubs.push(onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 900); }));
+  unsubs.push(watchNotices((id, e) => adjustmentToast(e, teams, teamId)));
 });
 
 function renderTeamChip() {
@@ -123,7 +124,8 @@ function onGameChange() {
   render();
 }
 function drawBoard(delay) {
-  boardFrom = renderBoard($("#board"), { teams, ledger, since: game.boardSince || 0, from: boardFrom, highlight: teamId, delay });
+  if (!board) return;   // snapshot not here yet — drawn as soon as it arrives
+  boardFrom = renderBoard($("#board"), { teams, board, from: boardFrom, highlight: teamId, delay });
 }
 
 const me = () => players[pid];
@@ -326,9 +328,9 @@ function revealHTML() {
     <h3>${qb(live, "title")}</h3>
     ${ans ? `<p class="muted">${b("answer_was")}</p><div class="reveal-answer">${ans}</div>` : ""}
     ${live.revealImage ? `<div class="reveal-pic"><img src="${esc(live.revealImage)}" alt=""></div>` : ""}
-    ${live.practice ? `<p class="tag">${b("practice")}</p>` : res ? `<p class="muted">${b("your_team_got")}</p>
-      <div class="reveal-points ${res.points < 0 ? "neg" : ""}">${res.points > 0 ? "+" : ""}${res.points} ${pair(t("points"), "")}</div>
-      ${res.summary ? `<p class="muted">${textPair(res.summary, summaryAr(res.summary))}</p>` : ""}` : ""}
+    ${live.practice ? `<p class="tag">${b("practice")}</p>` : res && res.summary ? `<p class="muted">${b("your_result")}</p>
+      <div class="reveal-result">${textPair(res.summary, summaryAr(res.summary))}</div>
+      <p class="muted small-note">${b("points_later")}</p>` : ""}
   </div>`;
 }
 

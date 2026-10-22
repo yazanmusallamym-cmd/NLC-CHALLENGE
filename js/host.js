@@ -6,10 +6,10 @@ import {
 import {
   auth, db, ref, onValue, get, update, push, remove, set, serverTimestamp,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow, firebaseConfig,
-  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin
+  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin, isPublic
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-21";
+export const PAGE_VERSION = "2026-10-22";
 checkVersions("host.js", PAGE_VERSION);
 import { grade, pickPlayers } from "./grading.js";
 import { SAMPLE_QUESTIONS } from "./samples.js";
@@ -71,7 +71,7 @@ function listen() {
   onValue(ref(db, "teams"), s => { teams = s.val() || {}; renderAll(); });
   onValue(ref(db, "players"), s => { players = s.val() || {}; renderTeams(); renderLiveSubs(); });
   onValue(ref(db, "played"), s => { played = s.val() || {}; renderTeams(); });
-  onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; renderAdjust(); renderScores(); });
+  onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; renderAdjust(); renderScores(); republishBoard(); });
   onValue(ref(db, "applied"), s => { applied = s.val() || {}; renderRunList(); });
   onValue(ref(db, "game"), s => { game = s.val() || { phase: "lobby" }; onGame(); });
   onValue(ref(db, "settings"), s => renderLook(s.val() || {}));
@@ -234,7 +234,26 @@ $("#bAdd").onclick = () => {
 $("#bLock").onclick = () => update(ref(db, "game"), { phase: "locked" });
 $("#bLobby").onclick = () => update(ref(db), { "game/phase": "lobby", "game/gallery": false, "game/spotlight": null, spot: null });
 $("#bGallery").onclick = () => update(ref(db), { "game/gallery": !game.gallery, "game/spotlight": null, spot: null });
-$("#bBoard").onclick = () => update(ref(db, "game"), game.showBoard ? { showBoard: false, boardSince: serverNow() } : { showBoard: true });
+// The scoreboard snapshot teams see: totals now, totals at the last showing (for the +/- and arrows),
+// and only the announced deductions. Teams never receive the full points history.
+function boardSnapshot() {
+  const ids = teamIds(), since = game.boardSince || 0;
+  const feed = {};
+  Object.entries(ledger).filter(([, e]) => isPublic(e) && (e.time || 0) > since)
+    .sort((a, b) => b[1].time - a[1].time).slice(0, 5)
+    .forEach(([k, e]) => { feed[k] = { teamId: e.teamId, delta: e.delta, reason: e.reason || "", time: e.time || 0 }; });
+  return { totals: totals(ledger, ids), base: totals(ledger, ids, since), feed, at: serverNow() };
+}
+$("#bBoard").onclick = () => update(ref(db), game.showBoard
+  ? { "game/showBoard": false, "game/boardSince": serverNow(), board: null }
+  : { "game/showBoard": true, board: boardSnapshot() });
+// While the scoreboard is up, points you apply animate on every screen.
+let boardTimer = null;
+function republishBoard() {
+  if (!game.showBoard) return;
+  clearTimeout(boardTimer);
+  boardTimer = setTimeout(() => { if (game.showBoard) set(ref(db, "board"), boardSnapshot()); }, 250);
+}
 
 // ---------------- LIVE: answers ----------------
 function renderLiveSubs() {
@@ -387,7 +406,9 @@ async function reveal() {
   const auto = grade(q, teamIds(), assignQ, subsQ, players, game.openedAt || 0);
   const vals = (gradeQid === qid && $("#gradePanel input[data-tid]")) ? finalValues() : ((applied[qid] && applied[qid].values) || {});
   const results = {};
-  for (const tid of teamIds()) results[tid] = { points: q.practice ? 0 : (vals[tid] ?? auto[tid].auto), summary: auto[tid].summary };
+  // Teams see how they did (right/wrong, place, time) but NOT the points — those only appear on the scoreboard.
+  const pts = Object.fromEntries(teamIds().map(tid => [tid, q.practice ? 0 : (vals[tid] ?? auto[tid].auto)]));
+  teamIds().slice().sort((a, b) => pts[b] - pts[a]).forEach((tid, i) => { results[tid] = { summary: auto[tid].summary, order: i }; });
   // Revealing straight from the rules screen also shows the question text.
   await update(ref(db), { "game/phase": "reveal", "game/reveal": { answer_en: revealText(q, "en"), answer_ar: revealText(q, "ar"), results },
     live: publicCopy(q, qid, true, true) });
@@ -412,9 +433,15 @@ function renderAdjust() {
   });
 }
 async function adjust(tid, delta) {
-  const reason = $("#adjReason").value.trim() || (delta < 0 ? "Rule break" : "Bonus");
-  await push(ref(db, "ledger"), { teamId: tid, delta, reason, kind: delta < 0 ? "penalty" : "bonus", time: serverTimestamp() });
-  toast(`${esc(teams[tid].name)} ${delta > 0 ? "+" : ""}${delta} — ${esc(reason)}`, delta < 0 ? "bad" : "good", 2500);
+  // Deductions are announced to everyone (unless "Silent" is ticked). Bonuses are always silent:
+  // they only show up in the totals the next time you show the scoreboard.
+  const silent = delta > 0 || $("#adjSilent").checked;
+  const reason = $("#adjReason").value.trim() || (delta < 0 ? (silent ? "Correction" : "Rule break") : "Bonus");
+  const k = push(ref(db, "ledger")).key;
+  const upd = { [`ledger/${k}`]: { teamId: tid, delta, reason, kind: delta < 0 ? "penalty" : "bonus", public: !silent, time: serverTimestamp() } };
+  if (!silent) upd[`notices/${k}`] = { teamId: tid, delta, reason, time: serverTimestamp() };
+  await update(ref(db), upd);
+  toast(`${esc(teams[tid].name)} ${delta > 0 ? "+" : ""}${delta} — ${esc(reason)}${silent ? " · 🤫 silent" : " · 📣 announced"}`, delta < 0 && !silent ? "bad" : "good", 2500);
 }
 
 // ---------------- QUESTIONS ----------------
@@ -762,7 +789,7 @@ async function reset(all) {
   // Everything that a game produces. Teams, questions and look & feel are not touched.
   const upd = {
     submissions: null, images: null, assign: null, secrets: null, ledger: null, applied: null,
-    played: null, live: null, spot: null, game: { phase: "lobby", showBoard: false, boardSince: serverNow() }
+    played: null, live: null, spot: null, board: null, notices: null, game: { phase: "lobby", showBoard: false, boardSince: serverNow() }
   };
   if (all) { upd.players = null; upd.counters = null; }
   await update(ref(db), upd);
@@ -785,7 +812,7 @@ function renderScores() {
   $("#ledgerTable").innerHTML = `<table class="grade-table"><thead><tr><th>Time</th><th>Team</th><th>Change</th><th>Reason</th><th></th></tr></thead><tbody>
     ${rows.map(([id, e]) => `<tr><td class="muted">${e.time ? new Date(e.time).toLocaleTimeString() : ""}</td>
       <td>${esc(teams[e.teamId]?.name || "?")}</td><td class="${e.delta < 0 ? "neg" : "pos"}"><b>${e.delta > 0 ? "+" : ""}${e.delta}</b></td>
-      <td>${esc(e.reason || "")}</td><td><button class="link-btn" data-undo="${id}">undo</button></td></tr>`).join("") || `<tr><td colspan="5" class="muted">No points yet</td></tr>`}
+      <td>${esc(e.reason || "")}${e.kind === "round" ? "" : isPublic(e) ? " <span class=\"muted\">📣</span>" : " <span class=\"muted\">🤫</span>"}</td><td><button class="link-btn" data-undo="${id}">undo</button></td></tr>`).join("") || `<tr><td colspan="5" class="muted">No points yet</td></tr>`}
     </tbody></table>`;
   $$("#ledgerTable [data-undo]").forEach(b => b.onclick = () => confirm("Remove this point change?") && remove(ref(db, `ledger/${b.dataset.undo}`)));
 }

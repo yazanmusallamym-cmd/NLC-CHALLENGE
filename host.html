@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-version="2026-10-21">
+<html lang="en" data-version="2026-10-22">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -74,6 +74,7 @@
       <aside class="card side">
         <button id="bBoard" class="btn huge board-toggle">🏆 Show scoreboard</button>
         <h3>Points &amp; deductions</h3>
+        <p class="hint adj-hint">📣 Deductions are announced to everyone. 🤫 Bonuses are silent — they only show in the totals next time you show the scoreboard.</p>
         <label class="small">Reason
           <input id="adjReason" list="reasonList" placeholder="e.g. Phones out · الجوالات برا">
           <datalist id="reasonList">
@@ -86,6 +87,7 @@
             <option value="Creative answer bonus · مكافأة جواب إبداعي">
           </datalist>
         </label>
+        <label class="adj-silent"><input type="checkbox" id="adjSilent"> 🤫 Silent — teams don't see this deduction (for fixing mistakes)</label>
         <div id="adjTeams"></div>
       </aside>
     </div>
