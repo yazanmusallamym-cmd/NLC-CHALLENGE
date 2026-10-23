@@ -11,7 +11,7 @@ import {
 import { firebaseConfig, GAME } from "./config.js";
 
 // Bump on every update. Each page, script and the stylesheet carry the same stamp so a half-finished upload is easy to spot.
-export const APP_VERSION = "2026-10-22";
+export const APP_VERSION = "2026-10-23";
 export function checkVersions(pageScript, pageScriptVersion) {
   const stale = [];
   const htmlV = document.documentElement.dataset.version || "";
@@ -24,6 +24,14 @@ export function checkVersions(pageScript, pageScriptVersion) {
   const box = document.createElement("div");
   box.className = "setup-banner";
   box.innerHTML = `⚠️ Some files on your site are out of date: <b>${stale.join(", ")}</b> — upload the latest version of ${stale.length > 1 ? "them" : "it"} (keep the folders), then press Ctrl+F5.`;
+  document.body.prepend(box);
+}
+// Shown when Firebase refuses something because the published database rules are older than the site.
+export function rulesBanner() {
+  if (document.getElementById("rulesBanner")) return;
+  const box = document.createElement("div");
+  box.id = "rulesBanner"; box.className = "setup-banner";
+  box.innerHTML = `⚠️ Your Firebase <b>database rules are out of date</b>, so Firebase is refusing the scoreboard. In Firebase → <b>Realtime Database → Rules</b>, replace everything with the latest <b>database.rules.json</b>, press <b>Publish</b>, then reload this page.`;
   document.body.prepend(box);
 }
 export const configured = !String(firebaseConfig.apiKey).startsWith("PASTE");
@@ -102,7 +110,7 @@ const T = {
     lineup_hint: "Line up in order without saying your number out loud!", squad_progress: "{n}/{m} of your squad answered",
     answer_was: "The answer", your_team_got: "Your team got", points: "pts", practice: "Practice round — no points",
     scoreboard: "Scoreboard", recent: "Latest adjustments", uploading: "Uploading…", failed: "Couldn't send — try again",
-    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", your_result: "Your team's result", points_later: "🏆 Points stay secret until the scoreboard!", next_q: "Next question", rules_wait: "The question appears when the countdown starts", you_play: "You're playing this one!", you_bench: "You're on the bench for this one — help:", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
+    too_late: "Too late, time is up", your_photo: "📸 That's your team on the big screen!", lineup_soon: "Your secret number appears when the timer starts — get ready to line up!", your_result: "Your team's result", scores_coming: "Scores are on their way…", points_later: "🏆 Points stay secret until the scoreboard!", next_q: "Next question", rules_wait: "The question appears when the countdown starts", you_play: "You're playing this one!", you_bench: "You're on the bench for this one — help:", confirm_choice: "Lock in this answer?", on_duty: "On duty", lobby: "Lobby"
   },
   ar: {
     login_title: "دخول الفريق", email: "بريد الفريق", password: "كلمة سر الفريق", sign_in: "دخول",
@@ -120,7 +128,7 @@ const T = {
     lineup_hint: "رتبوا حالكم بالترتيب بدون ما تقول رقمك بصوت عالي!", squad_progress: "{n}/{m} من فريقك جاوبوا",
     answer_was: "الجواب", your_team_got: "فريقك أخذ", points: "نقطة", practice: "جولة تجريبية — بدون نقاط",
     scoreboard: "النتائج", recent: "آخر التعديلات", uploading: "جاري الرفع…", failed: "ما انبعث — جرب مرة ثانية",
-    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", your_result: "نتيجة فريقكم", points_later: "🏆 النقاط سرّية لحد ما تظهر النتائج!", next_q: "السؤال الجاي", rules_wait: "السؤال رح يظهر لما يبلّش العد التنازلي", you_play: "إنت بتلعب هالسؤال!", you_bench: "إنت احتياط بهالسؤال — ساعد:", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
+    too_late: "متأخر، الوقت خلص", your_photo: "📸 هاي صورة فريقكم على الشاشة!", lineup_soon: "رقمك السري رح يظهر لما يبلّش الوقت — استعدوا للترتيب!", your_result: "نتيجة فريقكم", scores_coming: "النتائج جاية…", points_later: "🏆 النقاط سرّية لحد ما تظهر النتائج!", next_q: "السؤال الجاي", rules_wait: "السؤال رح يظهر لما يبلّش العد التنازلي", you_play: "إنت بتلعب هالسؤال!", you_bench: "إنت احتياط بهالسؤال — ساعد:", confirm_choice: "تثبيت هذا الجواب؟", on_duty: "المكلّفون", lobby: "الانتظار"
   }
 };
 export const lang = () => localStorage.getItem("tc_lang") || "en";

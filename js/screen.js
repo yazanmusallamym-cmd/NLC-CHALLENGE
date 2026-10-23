@@ -4,13 +4,13 @@ import {
   $, $$, esc, applyBranding, configBanner, qt, qOptions, watchNotices, adjustmentToast, renderBoard, TYPE_ICON
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-22";
+export const PAGE_VERSION = "2026-10-23";
 checkVersions("screen.js", PAGE_VERSION);
 
 applyBranding();
 if (configBanner()) throw new Error("Firebase not configured");
 
-let game = {}, live = null, teams = {}, players = {}, board = null, assignQ = {}, subsQ = {}, imagesQ = {};
+let game = {}, live = null, teams = {}, players = {}, board = null, ledger = null, assignQ = {}, subsQ = {}, imagesQ = {};
 let qUnsubs = [], imgUnsub = null, imgQid = null, lastQid, viewKey = "", boardOpen = false, boardFrom = null;
 const stage = $("#sStage");
 
@@ -25,7 +25,9 @@ onAuthStateChanged(auth, async user => {
   onValue(ref(db, "teams"), s => { teams = s.val() || {}; viewKey = ""; render(); });
   onValue(ref(db, "players"), s => { players = s.val() || {}; render(); });
   onValue(ref(db, "live"), s => { live = s.val(); viewKey = ""; render(); });
-  onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 1200); });
+  onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 1200); }, () => {});
+  // Backup: the projector runs on the host sign-in, so it can total the points itself if no snapshot arrives.
+  onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; if (boardOpen && !board) drawBoard(boardFrom ? 300 : 1200); }, () => {});
   onValue(ref(db, "game"), s => { game = s.val() || { phase: "lobby" }; onGame(); });
   watchNotices((id, e) => adjustmentToast(e, teams, null));
   setInterval(tick, 200);
@@ -54,8 +56,8 @@ function onGame() {
   viewKey = ""; render();
 }
 function drawBoard(delay) {
-  if (!board) return;
-  boardFrom = renderBoard($("#sBoardInner"), { teams, board, from: boardFrom, delay });
+  if (board) boardFrom = renderBoard($("#sBoardInner"), { teams, board, from: boardFrom, delay });
+  else if (ledger) boardFrom = renderBoard($("#sBoardInner"), { teams, ledger, since: game.boardSince || 0, from: boardFrom, delay });
 }
 
 const teamIds = () => Object.keys(teams).sort((a, b) => (teams[a].name || "").localeCompare(teams[b].name || ""));

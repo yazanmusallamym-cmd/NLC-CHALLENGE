@@ -6,10 +6,10 @@ import {
 import {
   auth, db, ref, onValue, get, update, push, remove, set, serverTimestamp,
   signInWithEmailAndPassword, signOut, onAuthStateChanged, serverNow, firebaseConfig,
-  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin, isPublic
+  $, $$, esc, applyBranding, configBanner, toast, totals, TYPE_ICON, qOptions, compressImage, GAME, authProblem, checkAdmin, isPublic, rulesBanner
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-22";
+export const PAGE_VERSION = "2026-10-23";
 checkVersions("host.js", PAGE_VERSION);
 import { grade, pickPlayers } from "./grading.js";
 import { SAMPLE_QUESTIONS } from "./samples.js";
@@ -72,6 +72,8 @@ function listen() {
   onValue(ref(db, "players"), s => { players = s.val() || {}; renderTeams(); renderLiveSubs(); });
   onValue(ref(db, "played"), s => { played = s.val() || {}; renderTeams(); });
   onValue(ref(db, "ledger"), s => { ledger = s.val() || {}; renderAdjust(); renderScores(); republishBoard(); });
+  onValue(ref(db, "board"), s => { boardSnap = s.val(); boardLoaded = true; if (game.showBoard && !boardSnap) republishBoard(); },
+    e => { console.error(e); rulesBanner(); });
   onValue(ref(db, "applied"), s => { applied = s.val() || {}; renderRunList(); });
   onValue(ref(db, "game"), s => { game = s.val() || { phase: "lobby" }; onGame(); });
   onValue(ref(db, "settings"), s => renderLook(s.val() || {}));
@@ -93,6 +95,7 @@ function onGame() {
   $("#phaseBadge").textContent = game.phase || "lobby";
   $("#phaseBadge").className = "phase-badge ph-" + (game.phase || "lobby");
   $("#bBoard").textContent = game.showBoard ? "🙈 Hide scoreboard" : "🏆 Show scoreboard";
+  if (game.showBoard && boardLoaded && !boardSnap) republishBoard();
   $("#bBoard").classList.toggle("on", !!game.showBoard);
   $("#bGallery").classList.toggle("on", !!game.gallery);
   renderRunList(); updateControls();
@@ -244,15 +247,27 @@ function boardSnapshot() {
     .forEach(([k, e]) => { feed[k] = { teamId: e.teamId, delta: e.delta, reason: e.reason || "", time: e.time || 0 }; });
   return { totals: totals(ledger, ids), base: totals(ledger, ids, since), feed, at: serverNow() };
 }
-$("#bBoard").onclick = () => update(ref(db), game.showBoard
-  ? { "game/showBoard": false, "game/boardSince": serverNow(), board: null }
-  : { "game/showBoard": true, board: boardSnapshot() });
+$("#bBoard").onclick = async () => {
+  try {
+    await update(ref(db), game.showBoard
+      ? { "game/showBoard": false, "game/boardSince": serverNow(), board: null }
+      : { "game/showBoard": true, board: boardSnapshot() });
+  } catch (e) {
+    console.error(e);
+    // Old rules refuse "board": still let the host close a stuck scoreboard.
+    if (game.showBoard) await update(ref(db, "game"), { showBoard: false, boardSince: serverNow() }).catch(() => {});
+    rulesBanner();
+    toast("Firebase refused the scoreboard — publish the latest database rules (see the red banner).", "bad", 7000);
+  }
+};
 // While the scoreboard is up, points you apply animate on every screen.
-let boardTimer = null;
+let boardTimer = null, boardSnap = null, boardLoaded = false;
 function republishBoard() {
   if (!game.showBoard) return;
   clearTimeout(boardTimer);
-  boardTimer = setTimeout(() => { if (game.showBoard) set(ref(db, "board"), boardSnapshot()); }, 250);
+  boardTimer = setTimeout(() => {
+    if (game.showBoard) set(ref(db, "board"), boardSnapshot()).catch(e => { console.error(e); rulesBanner(); });
+  }, 250);
 }
 
 // ---------------- LIVE: answers ----------------

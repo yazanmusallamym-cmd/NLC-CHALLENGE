@@ -7,7 +7,7 @@
 }
 /* ============ Theme — change these to match your camp ============ */
 :root {
-  --app-version: "2026-10-22";
+  --app-version: "2026-10-23";
   --bg: #1b1440;
   --bg2: #2b1d6b;
   --card: rgba(255, 255, 255, 0.96);
@@ -544,3 +544,4 @@ html:not([dir="rtl"]) body { text-align: left; } /* lets the Arabic line line up
 .reveal-result { font-size: 1.4rem; font-weight: 800; margin: 4px 0 6px; }
 .small-note { font-size: .9rem; }
 .s-results .sr-sum { font-size: 1.5rem; opacity: .95; margin-inline-start: auto; }
+.board-wait { color: #fff; opacity: .8; font-size: 1.2rem; text-align: center; padding: 30px 0; }

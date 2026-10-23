@@ -6,7 +6,7 @@ import {
   isRealName, titleCase, compressImage, toast, watchNotices, adjustmentToast, renderBoard, TYPE_ICON, authProblem, rulesList
 } from "./common.js";
 import { checkVersions } from "./common.js";
-export const PAGE_VERSION = "2026-10-22";
+export const PAGE_VERSION = "2026-10-23";
 checkVersions("player.js", PAGE_VERSION);
 
 let teamId = null, teams = {}, players = {}, pid = null, game = {}, live = null;
@@ -51,7 +51,7 @@ onAuthStateChanged(auth, async user => {
   unsubs.push(onValue(ref(db, "live"), s => { live = s.val(); viewKey = ""; render(); }));
   unsubs.push(onValue(ref(db, "spot"), s => showSpot(s.val())));
   // Scores arrive only as the snapshot the host publishes when showing the scoreboard.
-  unsubs.push(onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 900); }));
+  unsubs.push(onValue(ref(db, "board"), s => { board = s.val(); if (boardOpen) drawBoard(board && boardFrom ? 300 : 900); }, () => {}));
   unsubs.push(watchNotices((id, e) => adjustmentToast(e, teams, teamId)));
 });
 
@@ -124,7 +124,7 @@ function onGameChange() {
   render();
 }
 function drawBoard(delay) {
-  if (!board) return;   // snapshot not here yet — drawn as soon as it arrives
+  if (!board) { $("#board").innerHTML = `<p class="center muted board-wait">⏳ ${b("scores_coming")}</p>`; return; }
   boardFrom = renderBoard($("#board"), { teams, board, from: boardFrom, highlight: teamId, delay });
 }
 
